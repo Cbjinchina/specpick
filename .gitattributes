@@ -1,0 +1,2 @@
+# CI 会对生成的报告做 byte 级 diff，统一仓库内的换行符
+* text=auto eol=lf

@@ -1,0 +1,47 @@
+# 候选由自己录入：只写你真正在看的那几个，不用商品库、不用爬虫。
+# footprint / easy_clean 是 1-5 的主观评分，写清楚即可，重点是能被 git diff。
+
+[[item]]
+id = "A"
+name = "折叠硅胶沥水架"
+price = 89
+width_cm = 28
+material = "硅胶"
+footprint = 2
+easy_clean = 4
+
+[[item]]
+id = "B"
+name = "不锈钢单层沥水架"
+price = 129
+width_cm = 26
+material = "不锈钢"
+footprint = 1
+easy_clean = 5
+
+[[item]]
+id = "C"
+name = "竹木双层沥水架"
+price = 99
+width_cm = 35
+material = "竹质"
+footprint = 4
+easy_clean = 2
+
+[[item]]
+id = "D"
+name = "塑料可挂式沥水架"
+price = 69
+width_cm = 24
+material = "PP"
+footprint = 3
+easy_clean = 3
+
+[[item]]
+id = "E"
+name = "折叠不锈钢窄款"
+price = 115
+width_cm = 25
+material = "不锈钢"
+footprint = 2
+easy_clean = 5

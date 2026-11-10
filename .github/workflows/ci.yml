@@ -1,0 +1,26 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 单元测试（仅标准库）
+        run: python -m unittest discover -s tests -v
+
+      - name: 校验所有案例格式
+        run: python -m specpick check examples/kitchen-rack
+
+      - name: 报告可复现性检查
+        run: |
+          python -m specpick decide examples/kitchen-rack --out /tmp/report.md
+          diff -u examples/kitchen-rack/report.md /tmp/report.md
+
+      - name: 买后回测可生成
+        run: python -m specpick review --records records --out /tmp/REVIEW.md

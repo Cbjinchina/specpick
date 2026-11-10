@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "specpick"
+version = "0.1.0"
+description = "可复现的个人购买决策：把需求写成规格，对少量候选做可解释裁决"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+keywords = ["decision", "toml", "local-first", "reproducible"]
+
+[project.urls]
+Homepage = "https://github.com/Cbjinchina/specpick"
+Repository = "https://github.com/Cbjinchina/specpick"
+Issues = "https://github.com/Cbjinchina/specpick/issues"
+
+[project.scripts]
+specpick = "specpick.cli:main"
+
+[tool.setuptools]
+packages = ["specpick"]

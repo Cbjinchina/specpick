@@ -1,0 +1,27 @@
+title = "小厨房的沥水架"
+scene = "台面只剩 30cm 宽，家里有猫会跳上台面，碗不多但要天天洗。"
+budget = 120
+
+# 软偏好：归一化后按权重加总，方向必须显式写出来
+[weights]
+footprint = 3      # 占地越小越好，最在意
+easy_clean = 2     # 易清洗程度
+price = 1          # 价格最不敏感
+
+[directions]
+footprint = "lower"
+easy_clean = "higher"
+price = "lower"
+
+# 硬约束：不满足直接淘汰，且必须写出理由；不参与打分
+[[hard]]
+field = "width_cm"
+op = "<="
+value = 30
+label = "宽度不超过 30cm"
+
+[[hard]]
+field = "material"
+op = "not_in"
+value = ["木质", "竹质"]
+label = "不要木质/竹质（猫会抓、潮湿易发霉）"
