@@ -7,3 +7,11 @@ build/
 *.egg-info/
 .pytest_cache/
 .DS_Store
+
+# 测试台运行产物：包含个人购物输入与上传的商品截图，不进版本库
+playground/live-case/*
+playground/inbox/*
+!playground/live-case/.gitkeep
+!playground/inbox/.gitkeep
+.playground-token
+.push-token

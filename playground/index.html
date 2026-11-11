@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>specpick · 本地测试台</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --line:#e3e7ec; --soft:#f9fafb;
+    --ink:#1f2328; --muted:#66707c; --accent:#0b6b5f; --accent-soft:#e6f4f1;
+    --warn:#b42318; --warn-soft:#fef3f2; --code:#f3f5f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+  .app{max-width:1500px;margin:0 auto;padding:18px 20px 28px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+  .brand{font-size:20px;font-weight:700;letter-spacing:-.3px}
+  .brand span{font-size:14px;font-weight:500;color:var(--muted)}
+  .meta{margin-left:auto;color:var(--muted);font-size:12px}
+  .cmdbar{background:var(--soft);border:1px solid var(--line);border-radius:8px;
+          padding:8px 12px;margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .cmdbar code{background:var(--code);padding:3px 8px;border-radius:5px;
+               font:12px/1.5 "Cascadia Code",Consolas,monospace;color:#244}
+  .cmdbar .equiv{color:var(--muted);font-size:12px}
+  .casebar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;
+           padding:9px 12px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+  .casebar .lbl{font-size:12px;color:var(--muted);margin-right:2px}
+  button.case{font-size:12.5px;padding:5px 12px;border-radius:20px}
+  button.case.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .casedesc{font-size:12px;color:var(--muted);margin-left:auto}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--surface);
+         color:var(--ink);padding:7px 13px;border-radius:7px;transition:.15s}
+  button:hover{border-color:#b9c2cc;background:var(--soft)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{background:#095b50}
+  button:disabled{opacity:.55;cursor:wait}
+  .presets{display:flex;gap:6px;flex-wrap:wrap;margin-left:8px;padding-left:12px;
+           border-left:1px solid var(--line)}
+  .chip{font-size:12px;padding:5px 10px;border-radius:20px;background:var(--surface)}
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .grid{display:grid;grid-template-columns:minmax(360px,40%) 1fr;gap:14px;align-items:start}
+  @media(max-width:1000px){.grid{grid-template-columns:1fr}}
+  .pane{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+        box-shadow:0 1px 2px rgba(16,24,40,.03);overflow:hidden}
+  .pane-title{padding:9px 13px;background:var(--soft);border-bottom:1px solid var(--line);
+              font-weight:600;font-size:13px;display:flex;gap:8px;align-items:baseline}
+  .pane-title span{font-weight:400;color:var(--muted);font-size:12px}
+  .pane-title.focus-title{background:var(--accent-soft);border-bottom-color:#b7e4dc;color:#0b5c50}
+  .pane-title.focus-title span{color:#0b6b5f}
+  .mini-btn{margin-left:auto;font-size:11.5px;padding:3px 10px;border-radius:6px;
+            background:#fff;border-color:#b7e4dc;color:var(--accent)}
+  .mini-btn:hover{border-color:var(--accent);background:#fff;color:var(--accent)}
+  .fieldnote{padding:7px 13px;background:#fffdf5;border-bottom:1px solid #f0e4c0;
+             color:#7a5b12;font-size:12px}
+  .fieldnote code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:11px}
+  textarea{display:block;width:100%;height:250px;border:0;outline:none;resize:vertical;
+           padding:12px 14px;color:#22303c;background:#fcfdfd;
+           font:12.5px/1.65 "Cascadia Code",Consolas,"Courier New",monospace;
+           tab-size:2;white-space:pre;overflow:auto}
+  textarea:focus{background:#fff;box-shadow:inset 0 0 0 2px var(--accent-soft)}
+  .hint{padding:10px 13px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;
+        background:var(--soft)}
+  .hint code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:11px}
+  .imgzone{margin:13px;border:1.5px dashed #b7e4dc;border-radius:9px;background:#f7fdfb;padding:11px 12px}
+  .imgzone .zt{font-size:12.5px;font-weight:650;color:#0b5c50;margin-bottom:3px}
+  .imgzone .zd{font-size:11.5px;color:var(--muted);line-height:1.65;margin-bottom:9px}
+  .imgzone .zd code{background:var(--code);padding:1px 4px;border-radius:4px;font-size:11px}
+  .drop{border:1px dashed #a9d8ce;border-radius:7px;background:#fff;padding:10px;text-align:center;
+        font-size:12px;color:var(--muted);cursor:pointer;transition:.15s}
+  .drop:hover,.drop.over{border-color:var(--accent);background:#f0fbf8;color:var(--accent)}
+  .thumbs{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+  .thumbs figure{margin:0;position:relative}
+  .thumbs img{width:64px;height:64px;object-fit:cover;border:1px solid var(--line);
+              border-radius:6px;display:block;background:#fff}
+  .thumbs figcaption{font-size:10px;color:var(--muted);max-width:64px;overflow:hidden;
+                     text-overflow:ellipsis;white-space:nowrap}
+  .znote{margin-top:9px;font-size:11.5px;color:#7a5b12;background:#fffdf5;
+         border:1px solid #f0e4c0;border-radius:6px;padding:7px 9px;line-height:1.7}
+  .zbar{margin-top:9px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+  .zbar .mini-btn{margin-left:0;font-size:11.5px;padding:4px 10px}
+  .zbar .zstate{font-size:11.5px;color:var(--muted)}
+  .tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line);background:var(--soft)}
+  .tab{border:0;background:transparent;border-radius:6px 6px 0 0;padding:7px 13px;color:var(--muted);font-size:13px}
+  .tab.active{background:var(--surface);color:var(--ink);font-weight:600;
+              box-shadow:inset 0 0 0 1px var(--line);border-bottom:1px solid var(--surface)}
+  .status{padding:9px 14px;font-size:12.5px;border-bottom:1px solid var(--line);
+          display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-height:36px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#98a2b3;display:inline-block}
+  .status.ok .dot{background:#12a67a}.status.err .dot{background:#d92d20}
+  .status.err{color:var(--warn);background:var(--warn-soft)}
+  .badge{font:11px/1.4 Consolas,monospace;background:var(--code);padding:2px 7px;border-radius:4px;color:var(--muted)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:9px;padding:12px 14px 4px}
+  .card{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+  .card .k{font-size:11px;color:var(--muted);margin-bottom:3px}
+  .card .v{font-size:16px;font-weight:650;letter-spacing:-.2px}
+  .card .v.small{font-size:13px;font-weight:600}
+  .errbox{margin:12px 14px;padding:12px 14px;background:var(--warn-soft);
+          border:1px solid #fecdca;border-radius:8px;color:var(--warn);font-size:13px}
+  .errbox ul{margin:8px 0 0;padding-left:20px}
+  .okbox{margin:12px 14px;padding:12px 14px;background:var(--accent-soft);
+         border:1px solid #b7e4dc;border-radius:8px;color:#0b5c50;font-size:13px}
+  .report{padding:6px 22px 24px;font-size:14px}
+  .report h1{font-size:22px;margin:18px 0 10px;letter-spacing:-.4px}
+  .report h2{font-size:16px;margin:22px 0 9px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .report h3{font-size:14px;margin:16px 0 7px;color:#344054}
+  .report p{margin:8px 0}
+  .report blockquote{margin:10px 0;padding:8px 13px;background:var(--soft);
+                     border-left:3px solid var(--accent);color:var(--muted);border-radius:0 6px 6px 0}
+  .report ul{padding-left:20px;margin:8px 0}
+  .report li{margin:3px 0}
+  .report li.sub{list-style:"↳  ";margin-left:14px;color:var(--muted)}
+  .report hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+  .report code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:12px}
+  .report strong{font-weight:650}
+  .tablewrap{overflow-x:auto;margin:10px 0}
+  .report table{border-collapse:collapse;width:100%;font-size:13px}
+  .report th,.report td{border:1px solid var(--line);padding:7px 10px;text-align:left}
+  .report th{background:var(--soft);font-weight:600}
+  .report tbody tr:nth-child(1){background:#f2faf8}
+  pre.raw{margin:0;padding:16px 20px 24px;background:#fcfdfd;white-space:pre-wrap;
+          word-break:break-word;font:12px/1.65 Consolas,monospace;color:#344054}
+  footer{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.8}
+  footer code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">specpick <span>· 本地测试台</span></div>
+    <div class="meta">直接调用仓库里的真实引擎 · 100% Python 标准库 · 只监听 127.0.0.1，运行产物不进 git</div>
+  </header>
+
+  <div class="cmdbar">
+    <code>python -m specpick decide playground/live-case</code>
+    <span class="equiv">↔ 等价于点击下面的「生成裁决报告」；页面只是把 TOML 送进同一个引擎</span>
+  </div>
+
+  <div class="casebar" id="casebar">
+    <span class="lbl">当前案例</span>
+    <button class="case active" data-case="kitchen">小厨房的沥水架</button>
+    <button class="case" data-case="laptop">笔记本电脑 · 通勤办公</button>
+    <span class="casedesc" id="casedesc"></span>
+  </div>
+
+  <div class="toolbar">
+    <button id="btn-run" class="primary">▶ 生成裁决报告</button>
+    <button id="btn-check">✓ 校验格式</button>
+    <button id="btn-reset">↺ 恢复示例</button>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="grid">
+    <section class="pane">
+      <div class="pane-title">① needs.toml <span>我的需求规格：预算 / 权重 / 硬约束</span></div>
+      <textarea id="needs" spellcheck="false"></textarea>
+      <div class="pane-title focus-title">② items.toml <span>在这里填要对比的物品 ← 就是这里</span>
+        <button class="mini-btn" id="btn-additem">+ 插入一个物品</button>
+      </div>
+      <div class="fieldnote">
+        每个 <code>[[item]]</code> 就是一个物品，直接在下面这个框里改名字和数字。
+        所有物品必须有<b>完全相同</b>的字段，数字不加引号、中文要加引号。
+        不知道怎么起头，点右上角「+ 插入一个物品」会自动生成一个模板。
+      </div>
+      <textarea id="items" spellcheck="false"></textarea>
+
+      <div class="imgzone">
+        <div class="zt">③ 或者：传一张商品截图，让 AI 帮你把参数填进来</div>
+        <div class="zd">
+          电商参数页、规格表、拍下来的价签都行。图片只存到本机 <code>playground/inbox/</code>，不联网、不会被提交。
+        </div>
+        <div class="drop" id="drop">📷 点击选择图片，或把图片拖到这里（可多选）</div>
+        <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+        <div class="znote">
+          上传后<b>回到对话说一声「识别一下」</b>，我会读出图里的型号和参数、自动填进上面的 ① ② 两个框。
+          请<b>先核对数字</b>再点「生成裁决报告」——模型只负责录入，裁决始终由纯函数完成，不依赖任何 API Key。
+        </div>
+        <div class="zbar">
+          <button class="mini-btn" id="btn-load">↻ 载入识别结果</button>
+          <button class="mini-btn" id="btn-clearimg">清空图片</button>
+          <span class="zstate" id="zstate">尚未上传图片</span>
+        </div>
+      </div>
+
+      <div class="hint">
+        左边两个框都可以直接编辑：上面那个写「我要什么」，下面这个写「我在看哪几个」。
+        改完点工具栏的「▶ 生成裁决报告」就能看到排名、淘汰理由和反事实。
+        改动只写到 <code>playground/live-case/</code>，不会动仓库里的示例。
+      </div>
+    </section>
+
+    <section class="pane">
+      <div class="tabs">
+        <button class="tab active" data-tab="decision">裁决报告</button>
+        <button class="tab" data-tab="review">买后回测</button>
+        <button class="tab" data-tab="raw">原始 Markdown</button>
+      </div>
+      <div id="status" class="status"><span class="dot"></span><span id="status-text">准备中…</span></div>
+      <div id="cards" class="cards"></div>
+      <div id="report" class="report"></div>
+      <pre id="raw" class="raw" hidden></pre>
+    </section>
+  </div>
+
+  <footer>
+    测试台文件：<code>playground/server.py</code> + <code>index.html</code>（已纳入仓库，同样是纯标准库、零第三方依赖）。
+    运行中的每次输入都会写到 <code>playground/live-case/{needs.toml, items.toml, report.md}</code>（已被 .gitignore 排除），
+    你也可以在终端里用 <code>python -m specpick decide playground/live-case</code> 复现同一份报告。
+    启动方式：<code>python playground/server.py 8765</code>。
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const needsEl = $('#needs'), itemsEl = $('#items');
+const statusEl = $('#status'), statusText = $('#status-text');
+const cardsEl = $('#cards'), reportEl = $('#report'), rawEl = $('#raw');
+let CASES = null, currentCase = 'kitchen', currentTab = 'decision';
+let decisionMd = '', reviewMd = '', rawMd = '';
+let lastRev = 0, watchTimer = null, watchUntil = 0, imported = false;
+const base = () => CASES[currentCase];
+
+// 预设不绑定具体案例：直接改 TOML 文本，两个案例都能用
+function changeBudget(n, factor){
+  const m = n.match(/^budget\s*=\s*(\d+(?:\.\d+)?)/m);
+  if(!m) return n;
+  const v = Math.max(1, Math.round(Number(m[1]) * factor));
+  return n.replace(/^budget\s*=\s*\d+(?:\.\d+)?/m, 'budget = ' + v);
+}
+function priceFirst(n){
+  const lines = n.split('\n');
+  const start = lines.findIndex(l => l.trim() === '[weights]');
+  if(start < 0) return n;
+  for(let k = start + 1; k < lines.length && !/^\s*\[/.test(lines[k]); k++){
+    const m = lines[k].match(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(\d+(?:\.\d+)?)(.*)$/);
+    if(!m) continue;
+    lines[k] = m[1] + m[2] + m[3] + (m[2] === 'price' ? '8' : '1') + m[5];
+  }
+  return lines.join('\n');
+}
+
+const PRESETS = [
+  {id:'origin', label:'原始示例', fn:(n,i)=>[n,i]},
+  {id:'b80', label:'预算收紧 20%', fn:(n,i)=>[changeBudget(n,0.8),i]},
+  {id:'b10', label:'预算砍到 1/10（全淘汰）', fn:(n,i)=>[changeBudget(n,0.1),i]},
+  {id:'price', label:'价格优先（看赢家换人）', fn:(n,i)=>[priceFirst(n),i]},
+  {id:'extra', label:'再加一个候选', fn:(n,i)=>[n, i + base().extraItem]},
+  {id:'broken', label:'故意写错（看校验）', fn:(n,i)=>[n.replace(/=\s*"higher"/, '= "up"'),i]},
+];
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function inline(s){
+  return esc(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+               .replace(/`([^`]+)`/g,'<code>$1</code>');
+}
+function md2html(md){
+  const lines = md.split('\n'); let out=[], i=0;
+  while(i < lines.length){
+    const line = lines[i];
+    if(!line.trim()){i++;continue;}
+    if(line.startsWith('|')){
+      const rows=[];
+      while(i<lines.length && lines[i].startsWith('|')){rows.push(lines[i]);i++;}
+      const cells = rows.map(r=>r.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim()));
+      if(cells.length<2){continue;}
+      let h='<div class="tablewrap"><table><thead><tr>'+
+            cells[0].map(c=>`<th>${inline(c)}</th>`).join('')+'</tr></thead><tbody>';
+      for(const row of cells.slice(2)){
+        h+='<tr>'+row.map(c=>`<td>${inline(c)}</td>`).join('')+'</tr>';
+      }
+      out.push(h+'</tbody></table></div>'); continue;
+    }
+    const hm = line.match(/^(#{1,4})\s+(.*)$/);
+    if(hm){const lv=hm[1].length;out.push(`<h${lv}>${inline(hm[2])}</h${lv}>`);i++;continue;}
+    if(line.startsWith('> ')){out.push(`<blockquote>${inline(line.slice(2))}</blockquote>`);i++;continue;}
+    if(line.trim()==='---'){out.push('<hr>');i++;continue;}
+    if(/^\s*-\s+/.test(line)){
+      const items=[];
+      while(i<lines.length && /^\s*-\s+/.test(lines[i])){
+        const l=lines[i], indent=l.match(/^\s*/)[0].length;
+        items.push({indent, text:l.replace(/^\s*-\s+/,'')}); i++;
+      }
+      let h='<ul>';
+      for(const it of items){h+=`<li class="${it.indent>=2?'sub':''}">${inline(it.text)}</li>`;}
+      out.push(h+'</ul>'); continue;
+    }
+    const para=[line]; i++;
+    while(i<lines.length && lines[i].trim()!=='' &&
+          !/^(\||#{1,4}\s|>\s|\s*-\s)/.test(lines[i]) && lines[i].trim()!=='---'){
+      para.push(lines[i]); i++;
+    }
+    out.push(`<p>${inline(para.join(' '))}</p>`);
+  }
+  return out.join('\n');
+}
+
+function setStatus(text, kind, badges){
+  statusEl.className = 'status' + (kind ? ' '+kind : '');
+  statusText.textContent = text;
+  statusEl.querySelectorAll('.badge').forEach(b=>b.remove());
+  (badges||[]).forEach(b=>{
+    const s=document.createElement('span'); s.className='badge'; s.textContent=b;
+    statusEl.appendChild(s);
+  });
+}
+function card(k,v,small){return `<div class="card"><div class="k">${esc(k)}</div><div class="v${small?' small':''}">${v}</div></div>`;}
+
+async function api(path, body){
+  const opt = body ? {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function payload(){return {needs:needsEl.value, items:itemsEl.value};}
+function switchTab(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  const md = tab==='review' ? reviewMd : (tab==='raw' ? rawMd : decisionMd);
+  reportEl.hidden = tab==='raw';
+  rawEl.hidden = tab!=='raw';
+  if(tab==='raw'){rawEl.textContent = md || '（还没有生成报告）';}
+  else{reportEl.innerHTML = md ? md2html(md) : '';}
+}
+
+async function run(mode){
+  const btns=[$('#btn-run'),$('#btn-check')]; btns.forEach(b=>b.disabled=true);
+  setStatus('正在调用 specpick 引擎…','');
+  try{
+    const r = await api('/api/run', {...payload(), mode});
+    if(mode==='check'){
+      if(r.ok){
+        const c=r.check||{};
+        setStatus('✓ 校验通过：格式自洽，可以安全计算','ok',[`${c.items} 个候选`,`${c.hard} 条硬约束`,`${c.metrics} 个指标`,`${r.elapsed_ms} ms`]);
+        cardsEl.innerHTML = `<div class="okbox"><b>needs.toml / items.toml 自洽</b><br>每个候选都有全部指标和硬约束字段，权重都有方向定义，操作符也都支持。</div>`;
+      }else{
+        setStatus(`✗ 发现 ${r.errors.length} 处问题`,'err',[`${r.elapsed_ms} ms`]);
+        cardsEl.innerHTML = `<div class="errbox"><b>校验未通过，引擎会拒绝计算</b><ul>${r.errors.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div>`;
+      }
+      return;
+    }
+    if(!r.ok){
+      setStatus(`✗ 输入有 ${r.errors.length} 处问题，无法生成报告`,'err',[`${r.elapsed_ms} ms`]);
+      cardsEl.innerHTML = `<div class="errbox"><b>请按提示修改左侧 TOML</b><ul>${r.errors.map(e=>`<li>${esc(e)}</li>`).join('')}</ul></div>`;
+      decisionMd=''; rawMd=''; reportEl.innerHTML=''; rawEl.textContent='';
+      return;
+    }
+    const s=r.summary;
+    setStatus('✓ 裁决完成','ok',[
+      `案例 ${imported ? '图片识别结果（待核对）' : base().label}`, `${r.elapsed_ms} ms`,
+      r.reproducible ? '两次运行 byte 级一致 ✓' : '⚠ 复现校验异常'
+    ]);
+    cardsEl.innerHTML =
+      card('胜出', esc(s.winner||'无'), true) +
+      card('总分', s.total!=null ? s.total.toFixed(2) : '—') +
+      card('通过 / 淘汰', `${s.accepted} / ${s.rejected}`) +
+      card('权重敏感性', esc(s.verdict||'—'), true) +
+      card('反事实路径', `${s.moves} 条`) +
+      card('最容易翻盘的字段', s.top_move ? `${esc(s.top_move.label)} ${s.top_move.direction} ${s.top_move.target}` : '—', true);
+    decisionMd=r.markdown; rawMd=r.markdown;
+    switchTab(currentTab==='review'?'decision':currentTab);
+  }catch(e){
+    setStatus('请求失败：'+e.message,'err');
+  }finally{
+    btns.forEach(b=>b.disabled=false);
+  }
+}
+
+async function showReview(){
+  try{
+    const r=await api('/api/review');
+    reviewMd=r.markdown;
+    setStatus('买后回测：读的是仓库 records/ 下的真实 TOML','ok',[`${r.count} 条决策档案`]);
+    cardsEl.innerHTML='';
+    switchTab('review');
+  }catch(e){setStatus('读取回测失败：'+e.message,'err');}
+}
+
+function fill(n,i){needsEl.value=n; itemsEl.value=i;}
+
+$('#presets').innerHTML = PRESETS.map(p=>`<button class="chip" data-p="${p.id}">${p.label}</button>`).join('');
+$('#presets').addEventListener('click', async e=>{
+  const btn=e.target.closest('.chip'); if(!btn||!CASES) return;
+  const p=PRESETS.find(x=>x.id===btn.dataset.p); if(!p) return;
+  const [n,i]=p.fn(base().needs, base().items); fill(n,i);
+  await run('decide');
+});
+function insertItem(){
+  const text = itemsEl.value.trimEnd();
+  const m = text.match(/\[\[item\]\]([\s\S]*?)(?=\n\s*\[\[item\]\]|$)/);
+  const lines = m ? m[1].split('\n').filter(l=>/^\s*[A-Za-z_]\w*\s*=/.test(l)).map(l=>l.trim()) : [];
+  if(!lines.length){ setStatus('没找到现成的 [[item]] 字段，先点「恢复示例」','err'); return; }
+  const used = new Set([...text.matchAll(/^id\s*=\s*"([^"]+)"/gm)].map(x=>x[1]));
+  let id = 'F';
+  while(used.has(id) && id.charCodeAt(0) < 90) id = String.fromCharCode(id.charCodeAt(0)+1);
+  if(used.has(id)) id = 'N' + (used.size + 1);
+  const out = lines.map(l=>{
+    const kv = l.match(/^([A-Za-z_]\w*)(\s*=\s*)(.*)$/);
+    if(!kv) return l;
+    if(kv[1]==='id') return `id = "${id}"`;
+    if(kv[1]==='name') return 'name = "新物品（改成实际名称）"';
+    return l;
+  });
+  itemsEl.value = text + '\n\n[[item]]\n' + out.join('\n') + '\n';
+  itemsEl.focus();
+  itemsEl.scrollTop = itemsEl.scrollHeight;
+  setStatus('已在末尾插入一个物品模板，把名字和数字改成你的，再点「生成裁决报告」','ok');
+}
+$('#btn-additem').onclick = insertItem;
+$('#btn-run').onclick=()=>run('decide');
+$('#btn-check').onclick=()=>run('check');
+$('#btn-reset').onclick=async()=>{imported=false;stopWatch();fill(base().needs,base().items);await run('decide');};
+$('#casebar').addEventListener('click', async e=>{
+  const btn=e.target.closest('.case'); if(!btn||!CASES) return;
+  imported=false; stopWatch();
+  currentCase=btn.dataset.case;
+  document.querySelectorAll('.case').forEach(b=>b.classList.toggle('active',b===btn));
+  $('#casedesc').textContent=base().desc;
+  fill(base().needs, base().items);
+  await run('decide');
+});
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  if(b.dataset.tab==='review'){showReview();}else{switchTab(b.dataset.tab);}
+});
+
+/* ---------- 图片入口：只负责存图 + 等对话侧的识别结果回填 ---------- */
+const dropEl=$('#drop'), fileEl=$('#file'), thumbsEl=$('#thumbs'), zstateEl=$('#zstate');
+const zstate = t => { zstateEl.textContent = t; };
+
+function stopWatch(){
+  if(watchTimer){clearInterval(watchTimer);watchTimer=null;}
+  watchUntil=0;
+}
+function addThumb(name, src){
+  const fig=document.createElement('figure');
+  const im=document.createElement('img'); im.src=src; im.alt=name;
+  const cap=document.createElement('figcaption'); cap.textContent=name;
+  fig.append(im,cap); thumbsEl.appendChild(fig);
+}
+async function uploadFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/'));
+  if(!list.length){zstate('请选择 PNG / JPEG / WebP / GIF 图片');return;}
+  let done=0;
+  for(const f of list){
+    if(f.size>12*1024*1024){zstate(`${f.name} 超过 12MB，已跳过`);continue;}
+    zstate(`正在保存 ${f.name} …`);
+    try{
+      const dataUrl=await new Promise((res,rej)=>{
+        const fr=new FileReader();
+        fr.onload=()=>res(fr.result); fr.onerror=()=>rej(fr.error); fr.readAsDataURL(f);
+      });
+      const r=await api('/api/upload-image',{name:f.name,data:dataUrl});
+      if(!r.ok) throw new Error(r.error||'保存失败');
+      addThumb(f.name,dataUrl); done++;
+    }catch(e){zstate(`${f.name} 失败：${e.message}`);}
+  }
+  if(done){
+    zstate(`已保存 ${done} 张到 inbox/ · 回到对话说「识别一下」`);
+    startWatch();
+  }
+}
+async function loadCurrent(manual){
+  try{
+    const c=await api('/api/current');
+    if(c.revision>lastRev || manual){
+      lastRev=c.revision;
+      if(!c.needs.trim()||!c.items.trim()){if(manual)zstate('还没有识别结果');return false;}
+      imported=true;
+      fill(c.needs,c.items);
+      await run('decide');
+      zstate(`✓ 已载入识别结果（rev ${c.revision}），请核对左侧数字`);
+      return true;
+    }
+    if(manual) zstate('还没有新的识别结果，先在对话里说「识别一下」');
+  }catch(e){if(manual)zstate('载入失败：'+e.message);}
+  return false;
+}
+function startWatch(){
+  stopWatch();
+  watchUntil=Date.now()+5*60*1000;
+  watchTimer=setInterval(async()=>{
+    if(Date.now()>watchUntil){stopWatch();zstate('等待超时，可随时点「↻ 载入识别结果」');return;}
+    if(await loadCurrent(false)) stopWatch();
+  },2500);
+}
+dropEl.onclick=()=>fileEl.click();
+fileEl.onchange=()=>{uploadFiles(fileEl.files);fileEl.value='';};
+['dragenter','dragover'].forEach(ev=>dropEl.addEventListener(ev,e=>{e.preventDefault();dropEl.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>dropEl.addEventListener(ev,e=>{e.preventDefault();dropEl.classList.remove('over');}));
+dropEl.addEventListener('drop',e=>uploadFiles(e.dataTransfer.files));
+$('#btn-load').onclick=()=>loadCurrent(true);
+$('#btn-clearimg').onclick=()=>{thumbsEl.innerHTML='';stopWatch();zstate('已清空预览（inbox/ 里的文件仍在）');};
+
+(async function boot(){
+  try{
+    CASES=(await api('/api/cases')).cases;
+    lastRev=(await api('/api/current')).revision||0;
+    $('#casedesc').textContent=base().desc;
+    fill(base().needs,base().items);
+    reviewMd=(await api('/api/review')).markdown;
+    await run('decide');
+  }catch(e){setStatus('初始化失败：'+e.message,'err');}
+})();
+</script>
+</body>
+</html>

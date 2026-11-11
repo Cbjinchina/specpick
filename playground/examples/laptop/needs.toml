@@ -1,0 +1,41 @@
+title = "通勤办公笔记本怎么选"
+scene = "每天背去公司，主要写文档、开视频会、跑轻量脚本，偶尔修图；不玩游戏，希望续航能顶一整天。"
+budget = 8000
+
+# 软偏好：数值型字段，归一化后按权重加总，方向必须显式写出来
+[weights]
+weight_kg = 4      # 背得动，最在意
+battery_h = 3      # 续航
+price = 2          # 价格
+ram_gb = 1         # 内存，最不敏感
+
+[directions]
+weight_kg = "lower"
+battery_h = "higher"
+price = "lower"
+ram_gb = "higher"
+
+# 硬约束：不满足直接淘汰，且必须写出理由；不参与打分
+[[hard]]
+field = "weight_kg"
+op = "<="
+value = 2.0
+label = "整机重量不超过 2.0kg（每天背）"
+
+[[hard]]
+field = "ram_gb"
+op = ">="
+value = 16
+label = "内存至少 16G（多开不卡）"
+
+[[hard]]
+field = "ssd_gb"
+op = ">="
+value = 512
+label = "硬盘至少 512G"
+
+[[hard]]
+field = "os"
+op = "=="
+value = "Windows"
+label = "必须 Windows（公司软件只支持 Windows）"

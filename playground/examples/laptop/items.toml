@@ -1,0 +1,63 @@
+# 示例数据：机型与价格均为示意值，手动录入，非实时报价。
+# 重点是把「我的需求」写清楚，而不是建一个商品库。
+# 换电脑时只改这几行，然后重新生成报告，diff 就是你的判断变化。
+
+[[item]]
+id = "A"
+name = "14 寸轻薄办公本"
+price = 5499
+weight_kg = 1.24
+battery_h = 12
+ram_gb = 16
+ssd_gb = 512
+screen_inch = 14
+gpu = "核显"
+os = "Windows"
+
+[[item]]
+id = "B"
+name = "16 寸高性能全能本"
+price = 7899
+weight_kg = 1.95
+battery_h = 7
+ram_gb = 32
+ssd_gb = 1024
+screen_inch = 16
+gpu = "独显"
+os = "Windows"
+
+[[item]]
+id = "C"
+name = "13 寸长续航轻薄本"
+price = 7299
+weight_kg = 0.99
+battery_h = 18
+ram_gb = 16
+ssd_gb = 512
+screen_inch = 13
+gpu = "核显"
+os = "Windows"
+
+[[item]]
+id = "D"
+name = "16 寸大屏创作本"
+price = 10999
+weight_kg = 2.20
+battery_h = 6
+ram_gb = 32
+ssd_gb = 1024
+screen_inch = 16
+gpu = "独显"
+os = "Windows"
+
+[[item]]
+id = "E"
+name = "15 寸入门办公本"
+price = 3999
+weight_kg = 1.75
+battery_h = 8
+ram_gb = 8
+ssd_gb = 256
+screen_inch = 15
+gpu = "核显"
+os = "Windows"
