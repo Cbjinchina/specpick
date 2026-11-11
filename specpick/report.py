@@ -14,6 +14,12 @@ METRIC_LABELS = {
     "durability": "耐用",
     "noise": "噪音",
     "weight": "重量",
+    "weight_kg": "重量(kg)",
+    "battery_h": "续航(h)",
+    "ram_gb": "内存(GB)",
+    "vram_gb": "显存(GB)",
+    "fan_count": "风扇数",
+    "tier": "型号档位",
 }
 
 

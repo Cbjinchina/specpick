@@ -57,8 +57,8 @@ IMAGE_TYPES = {
     "image/gif": ".gif",
 }
 
-# 测试台自带的两个案例：仓库示例（厨房小件）+ 新增的笔记本电脑。
-# 引擎本身不区分品类，差别只在于你写进 needs.toml 的字段。
+# 测试台自带三个案例：仓库示例（厨房小件）、笔记本电脑、以及从真实
+# 电商截图读出参数后建立的显卡案例。引擎不区分品类，差别只在 needs.toml 的字段。
 CASE_META = {
     "kitchen": {
         "label": "小厨房的沥水架",
@@ -77,6 +77,16 @@ CASE_META = {
             '\n[[item]]\nid = "F"\nname = "新出的超轻长续航本"\nprice = 4999\n'
             'weight_kg = 0.89\nbattery_h = 20\nram_gb = 16\nssd_gb = 512\n'
             'screen_inch = 14\ngpu = "核显"\nos = "Windows"\n'
+        ),
+    },
+    "gpu": {
+        "label": "显卡 · 京东截图",
+        "desc": "真实商品截图读出 6 款显卡 · 演示图片辅助录入与可比性分组",
+        "dir": HERE / "examples" / "gpu",
+        "extra": (
+            '\n[[item]]\nid = "G"\nname = "新看的一款显卡（改成实际型号）"\n'
+            'price = 4499\nvram_gb = 8\nfan_count = 2\ntier = 0\n'
+            'source = "手动补充"\n'
         ),
     },
 }

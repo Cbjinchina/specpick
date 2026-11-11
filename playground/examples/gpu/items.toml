@@ -1,0 +1,67 @@
+# 数据来源：2026-11-11 一张京东「RTX 5060」搜索结果页截图（原图 2442×4760）。
+# 由对话侧的多模态能力从图中读出，再写回这份 TOML —— 模型不参与打分。
+#
+# 口径说明（很重要，改数字前先看）：
+#   price     : 卡片下方的「列表标价」，不是商品图里的券后价/到手价。
+#               例如七彩虹 5060Ti 广告图写 6699，列表价是 7299，这里取 7299。
+#   vram_gb   : 标题或商品图上的显存容量（8GB / 16GB）。
+#   fan_count : 从商品图数出来的风扇数（DUO / X2W = 双风扇，Ultra W = 三风扇）。
+#   tier      : 人工编码，5060 = 0、5060Ti = 1，代表型号档位，不是跑分。
+#
+# 这张「列表页」截图看不到的字段：功耗、卡长、接口、供电、实际跑分、保修年限。
+# 需要的话点进详情页补齐，再在 needs.toml 里加上对应字段与权重。
+# 价格是截图那一刻的标价，仅作演示，不是实时报价。
+
+[[item]]
+id = "A"
+name = "七彩虹 5060Ti 16G Ultra W DUO OC"
+price = 7299
+vram_gb = 16
+fan_count = 3
+tier = 1
+source = "第1行第1列 · 七彩虹Colorfire旗舰店"
+
+[[item]]
+id = "B"
+name = "七彩虹 5060 Ultra W OC 8G"
+price = 4799
+vram_gb = 8
+fan_count = 3
+tier = 0
+source = "第1行第2列 · 七彩虹Colorful旗舰店"
+
+[[item]]
+id = "C"
+name = "电竞叛客 GeForce RTX 5060 X2W 8GB"
+price = 4199
+vram_gb = 8
+fan_count = 2
+tier = 0
+source = "第1行第3列 · 电竞叛客旗舰店"
+
+[[item]]
+id = "D"
+name = "七彩虹 5060 战斧 DUO 8GB"
+price = 4599
+vram_gb = 8
+fan_count = 2
+tier = 0
+source = "第2行第1列 · 七彩虹Colorful旗舰店"
+
+[[item]]
+id = "E"
+name = "万丽 GeForce RTX 5060 OC 8GB GDDR7 雪狐"
+price = 3999
+vram_gb = 8
+fan_count = 2
+tier = 0
+source = "第2行第3列 · 万丽电竞旗舰店"
+
+[[item]]
+id = "F"
+name = "技嘉 GIGABYTE RTX 5060 Ti 16G"
+price = 4899
+vram_gb = 16
+fan_count = 3
+tier = 1
+source = "第3行第2列 · 技嘉DIY旗舰店（标题含 16G/8G，按 16G 记，需核对）"

@@ -1,0 +1,28 @@
+title = "RTX 5060 显卡怎么选（京东搜索页截图）"
+scene = "一页搜索结果里混着显卡、游戏本和台式整机。先只挑独立显卡作为可比集合，按列表标价、显存、散热规模和型号档位做裁决；不追跑分，也不猜券后价。"
+budget = 5000
+
+# 软偏好：权重是我自己的取舍，不是客观跑分
+[weights]
+price = 4        # 优先便宜
+vram_gb = 3      # 显存大更耐用
+tier = 2         # 5060Ti 比 5060 高一档
+fan_count = 1    # 三风扇散热余量更大，但没那么在意
+
+[directions]
+price = "lower"
+vram_gb = "higher"
+tier = "higher"
+fan_count = "higher"
+
+[[hard]]
+field = "price"
+op = "<="
+value = 5000
+label = "预算 ¥5000 以内（统一按列表标价，不用广告图券后价）"
+
+[[hard]]
+field = "vram_gb"
+op = ">="
+value = 8
+label = "显存至少 8G"
