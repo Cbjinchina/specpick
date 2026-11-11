@@ -14,7 +14,7 @@
 
 | 怎么用 | 地址 / 命令 |
 | --- | --- |
-| 手机 / 电脑在线 | `https://cbjinchina.github.io/specpick/`（**尚未启用**：仓库自带 Pages 发布流程，首次需在 Settings → Pages 把 Source 设为 GitHub Actions） |
+| 手机 / 电脑在线 | **https://cbjinchina.github.io/specpick/** —— 已上线，手机、电脑浏览器点开即用 |
 | 完全离线 / 发给别人 | 打开 `web/specpick.html`，这是打包好的**单文件**，存到手机里双击即用 |
 | 开发调试 | `python playground/server.py 8765` → `http://127.0.0.1:8765`（含图片辅助录入的完整测试台） |
 | 命令行 / 可 git 版本化 | 下面「三条命令」 |
