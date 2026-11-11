@@ -1,0 +1,40 @@
+name: pages
+
+# 把网页版发到 GitHub Pages，手机扫码即可打开。
+# 首次需要在仓库 Settings → Pages 把 Source 设为「GitHub Actions」。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 组装站点（静态文件，无构建步骤）
+        run: |
+          mkdir -p _site
+          cp web/index.html _site/index.html
+          cp web/engine.js _site/engine.js
+          cp web/specpick.html _site/specpick.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deployment

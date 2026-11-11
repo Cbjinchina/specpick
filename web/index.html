@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f7f5">
+<title>specpick · 按我的需求挑东西</title>
+<style>
+:root{
+  --bg:#f5f6f3; --card:#ffffff; --text:#1b1e1a; --muted:#6c736a;
+  --line:#dfe3db; --accent:#176b4d; --accent-bg:#e7f3ec;
+  --warn:#a0471c; --warn-bg:#fdf0e7; --code:#eef1eb; --chip:#f0f2ed;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141713; --card:#1e221d; --text:#eef1ea; --muted:#9aa39a;
+    --line:#343a32; --accent:#86d3ac; --accent-bg:#22362b;
+    --warn:#f0ad80; --warn-bg:#3a281e; --code:#272c26; --chip:#272c26;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-text-size-adjust:100%;padding-bottom:32px}
+header{max-width:1080px;margin:0 auto;padding:20px 16px 8px}
+h1{font-size:21px;margin:0 0 4px;font-weight:600}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.wrap{max-width:1080px;margin:0 auto;padding:8px 16px;display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:920px){.wrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 12px;font-weight:600;display:flex;align-items:center;gap:8px}
+.n{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);
+  font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.tip{font-size:12px;color:var(--muted);margin:-4px 0 12px;line-height:1.5}
+label.f{display:block;font-size:12px;color:var(--muted);margin:0 0 4px}
+input,select,textarea{font:16px/1.4 inherit;font-family:inherit;color:var(--text);
+  background:var(--card);border:1px solid var(--line);border-radius:9px;
+  padding:9px 10px;width:100%;min-height:42px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:60px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mb{margin-bottom:12px}
+button{border:1px solid var(--line);background:var(--chip);color:var(--text);
+  border-radius:9px;min-height:42px;padding:8px 14px;font:500 14px/1.2 inherit;cursor:pointer}
+button:active{opacity:.8}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;width:100%;
+  min-height:50px;font-size:16px;border-radius:11px;font-weight:600}
+button.mini{min-height:34px;padding:5px 10px;font-size:12px}
+button.del{color:var(--warn);background:transparent;border-color:transparent;padding:4px 8px;min-height:30px}
+.row{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:10px;background:var(--bg)}
+.row .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row .full{grid-column:1 / -1}
+.row .wline{display:flex;align-items:center;gap:8px;margin-top:8px}
+.row .wline input[type=range]{flex:1;min-height:32px;padding:0;border:0;background:transparent;accent-color:var(--accent)}
+.row .wv{min-width:22px;text-align:center;font-weight:600;color:var(--accent)}
+.row .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.row .hd span{font-size:12px;color:var(--muted)}
+.item{border:1px solid var(--line);border-radius:11px;padding:10px;margin-bottom:10px}
+.item .top{display:grid;grid-template-columns:1fr 110px;gap:8px}
+.item .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.item .fields label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
+.item .fields input{min-height:38px;font-size:15px;padding:7px 8px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.err{color:var(--warn);background:var(--warn-bg);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:10px}
+.hero{background:var(--accent-bg);border:1px solid var(--accent);border-radius:14px;padding:18px;margin-bottom:14px}
+.hero .k{font-size:12px;color:var(--muted);margin-bottom:6px}
+.hero .name{font-size:22px;font-weight:600;line-height:1.35;margin-bottom:8px}
+.hero .nums{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
+.hero .nums b{font-size:20px;display:block;font-weight:600}
+.badge{display:inline-block;background:var(--chip);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--muted)}
+.rank{margin-bottom:12px}
+.rank .line{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+.bar{height:9px;background:var(--code);border-radius:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.sec{margin:16px 0 8px;font-size:14px;font-weight:600}
+ul.plain{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
+.small{font-size:12px;color:var(--muted);line-height:1.6}
+details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-size:13px;color:var(--accent)}
+pre{background:var(--code);border-radius:9px;padding:10px;overflow:auto;font-size:12px;line-height:1.5;
+  white-space:pre-wrap;word-break:break-all;max-height:280px}
+footer{max-width:1080px;margin:0 auto;padding:0 16px 20px;font-size:12px;color:var(--muted);line-height:1.7}
+select.pick{max-width:100%;font-size:15px}
+.hrow{display:grid;grid-template-columns:1fr 74px 1fr;gap:8px}
+.hrow .full{grid-column:1 / -1}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>按我的需求挑东西</h1>
+  <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
+</header>
+
+<div class="wrap">
+  <div class="col">
+    <div class="card">
+      <h2><span class="n">0</span> 先选一个例子，或从空白开始</h2>
+      <select id="caseSel" class="pick" aria-label="选择示例"></select>
+      <div class="tip" id="caseDesc"></div>
+      <div class="toolbar">
+        <button class="mini" id="btnBlank">空白新对比</button>
+        <button class="mini" id="btnExport">导出备份</button>
+        <button class="mini" id="btnImport">导入备份</button>
+        <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+      </div>
+    </div>
+
+    <div class="card" id="formCard">
+      <h2><span class="n">1</span> 你要买什么</h2>
+      <div class="mb"><label class="f">给这次对比起个名字</label><input id="fTitle"></div>
+      <div class="mb"><label class="f">场景说明（可留空）</label><textarea id="fScene"></textarea></div>
+      <div class="two">
+        <div><label class="f">预算 ¥</label><input id="fBudget" type="number" inputmode="decimal" min="0"></div>
+        <div><label class="f">价格有多重要（0 = 不看价格）</label>
+          <select id="fPriceWeight"></select></div>
+      </div>
+
+      <h2 style="margin-top:20px"><span class="n">2</span> 你在意哪些方面</h2>
+      <p class="tip">每一行是一个比较项。数字项可以打分，文字项只用来做筛选。权重 0 表示「不参与打分，只用来筛选」。</p>
+      <div id="fields"></div>
+      <button class="mini" id="btnAddField">+ 添加一个比较项</button>
+
+      <h2 style="margin-top:20px"><span class="n">3</span> 必须满足的条件</h2>
+      <p class="tip">不满足的候选会被直接淘汰，报告里会逐条写出原因。预算已经自动算一条，这里放别的硬要求。</p>
+      <div id="hards"></div>
+      <button class="mini" id="btnAddHard">+ 添加一条硬要求</button>
+
+      <h2 style="margin-top:20px"><span class="n">4</span> 正在看的几个候选</h2>
+      <p class="tip">只填你真正会买的那几个，3–8 个就够。价格填数字，不用写 ¥。</p>
+      <div id="items"></div>
+      <button class="mini" id="btnAddItem">+ 添加一个候选</button>
+
+      <div style="margin-top:18px"><button class="primary" id="btnRun">生成裁决报告</button></div>
+      <div class="toolbar">
+        <button class="mini" id="btnToml">查看 / 复制 TOML</button>
+        <button class="mini" id="btnMd">复制 Markdown 报告</button>
+      </div>
+      <div id="tomlBox" class="hidden" style="margin-top:10px">
+        <div class="small">下面两段可分别保存为 needs.toml 与 items.toml，用命令行跑会得到同样的结果。</div>
+        <label class="f" style="margin-top:8px">needs.toml</label><textarea id="tomlNeeds" rows="8" readonly></textarea>
+        <label class="f" style="margin-top:8px">items.toml</label><textarea id="tomlItems" rows="8" readonly></textarea>
+        <div class="toolbar">
+          <button class="mini" id="btnCopyNeeds">复制 needs.toml</button>
+          <button class="mini" id="btnCopyItems">复制 items.toml</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="card" id="reportCard">
+      <h2 style="margin-bottom:6px">裁决报告</h2>
+      <div id="report"><p class="small">填好左边，点「生成裁决报告」就能看到：谁该赢、为什么另一个输了、要改哪个条件才会翻盘。</p></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  specpick 网页版 · 与命令行版是同一套算法的两个实现，结果可交叉校验。
+  不上传任何数据、不用 API Key、不抓商品；关掉网页数据仍留在本机浏览器里。
+  换设备时用「导出备份 / 导入备份」搬走。
+</footer>
+
+<script src="engine.js"></script>
+<script>
+(function(){
+'use strict';
+var $ = function(s){ return document.querySelector(s); };
+var esc = function(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+  .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+var KEY = 'specpick.web.v1';
+
+/* ---------- 内置案例：与仓库里的 TOML 案例等价 ---------- */
+var CASES = {
+  kitchen: {
+    desc:'厨房小件 · 参数靠主观权衡，含文字型硬约束',
+    data:{ caseId:'kitchen', title:'小厨房的沥水架',
+      scene:'台面只剩 30cm 宽，家里有猫会跳上台面，碗不多但要天天洗。',
+      budget:120, priceWeight:1,
+      fields:[
+        {key:'footprint',label:'占地（1-5 分）',type:'number',direction:'lower',weight:3},
+        {key:'easy_clean',label:'易清洗（1-5 分）',type:'number',direction:'higher',weight:2},
+        {key:'width_cm',label:'宽度 cm',type:'number',direction:'lower',weight:0},
+        {key:'material',label:'材质',type:'text',direction:'higher',weight:0}
+      ],
+      hard:[
+        {field:'width_cm',op:'<=',value:30,label:'宽度不超过 30cm'},
+        {field:'material',op:'not_in',value:['木质','竹质'],label:'不要木质/竹质（猫会抓、潮湿易发霉）'}
+      ],
+      items:[
+        {id:'A',name:'折叠硅胶沥水架',price:89,width_cm:28,material:'硅胶',footprint:2,easy_clean:4},
+        {id:'B',name:'不锈钢单层沥水架',price:129,width_cm:26,material:'不锈钢',footprint:1,easy_clean:5},
+        {id:'C',name:'竹木双层沥水架',price:99,width_cm:35,material:'竹质',footprint:4,easy_clean:2},
+        {id:'D',name:'塑料可挂式沥水架',price:69,width_cm:24,material:'PP',footprint:3,easy_clean:3},
+        {id:'E',name:'折叠不锈钢窄款',price:115,width_cm:25,material:'不锈钢',footprint:2,easy_clean:5}
+      ]}
+  },
+  laptop: {
+    desc:'笔记本电脑 · 通勤办公，重点看硬约束淘汰',
+    data:{ caseId:'laptop', title:'通勤办公笔记本怎么选',
+      scene:'每天背去公司，主要写文档、开视频会、跑轻量脚本，偶尔修图；不玩游戏，希望续航能顶一整天。',
+      budget:8000, priceWeight:2,
+      fields:[
+        {key:'weight_kg',label:'重量 kg',type:'number',direction:'lower',weight:4},
+        {key:'battery_h',label:'续航 小时',type:'number',direction:'higher',weight:3},
+        {key:'ram_gb',label:'内存 GB',type:'number',direction:'higher',weight:1},
+        {key:'ssd_gb',label:'硬盘 GB',type:'number',direction:'higher',weight:0},
+        {key:'screen_inch',label:'屏幕 英寸',type:'number',direction:'higher',weight:0},
+        {key:'gpu',label:'显卡类型',type:'text',direction:'higher',weight:0},
+        {key:'os',label:'系统',type:'text',direction:'higher',weight:0}
+      ],
+      hard:[
+        {field:'weight_kg',op:'<=',value:2,label:'整机重量不超过 2.0kg（每天背）'},
+        {field:'ram_gb',op:'>=',value:16,label:'内存至少 16G（多开不卡）'},
+        {field:'ssd_gb',op:'>=',value:512,label:'硬盘至少 512G'},
+        {field:'os',op:'==',value:'Windows',label:'必须 Windows（公司软件只支持 Windows）'}
+      ],
+      items:[
+        {id:'A',name:'14 寸轻薄办公本',price:5499,weight_kg:1.24,battery_h:12,ram_gb:16,ssd_gb:512,screen_inch:14,gpu:'核显',os:'Windows'},
+        {id:'B',name:'16 寸高性能全能本',price:7899,weight_kg:1.95,battery_h:7,ram_gb:32,ssd_gb:1024,screen_inch:16,gpu:'独显',os:'Windows'},
+        {id:'C',name:'13 寸长续航轻薄本',price:7299,weight_kg:0.99,battery_h:18,ram_gb:16,ssd_gb:512,screen_inch:13,gpu:'核显',os:'Windows'},
+        {id:'D',name:'16 寸大屏创作本',price:10999,weight_kg:2.20,battery_h:6,ram_gb:32,ssd_gb:1024,screen_inch:16,gpu:'独显',os:'Windows'},
+        {id:'E',name:'15 寸入门办公本',price:3999,weight_kg:1.75,battery_h:8,ram_gb:8,ssd_gb:256,screen_inch:15,gpu:'核显',os:'Windows'}
+      ]}
+  },
+  gpu: {
+    desc:'显卡 · 从京东搜索页截图读出的 6 款真实候选',
+    data:{ caseId:'gpu', title:'RTX 5060 显卡怎么选（京东搜索页截图）',
+      scene:'一页搜索结果里混着显卡、游戏本和台式整机。先只挑独立显卡作为可比集合，按列表标价、显存、散热规模和型号档位做裁决；不追跑分，也不猜券后价。',
+      budget:5000, priceWeight:4,
+      fields:[
+        {key:'vram_gb',label:'显存 GB',type:'number',direction:'higher',weight:3},
+        {key:'tier',label:'型号档位（5060=0 / Ti=1）',type:'number',direction:'higher',weight:2},
+        {key:'fan_count',label:'风扇数',type:'number',direction:'higher',weight:1},
+        {key:'source',label:'数据来源',type:'text',direction:'higher',weight:0}
+      ],
+      hard:[
+        {field:'price',op:'<=',value:5000,label:'预算 ¥5000 以内（统一按列表标价，不用广告图券后价）'},
+        {field:'vram_gb',op:'>=',value:8,label:'显存至少 8G'}
+      ],
+      items:[
+        {id:'A',name:'七彩虹 5060Ti 16G Ultra W DUO OC',price:7299,vram_gb:16,fan_count:3,tier:1,source:'第1行第1列 · 七彩虹Colorfire旗舰店'},
+        {id:'B',name:'七彩虹 5060 Ultra W OC 8G',price:4799,vram_gb:8,fan_count:3,tier:0,source:'第1行第2列 · 七彩虹Colorful旗舰店'},
+        {id:'C',name:'电竞叛客 GeForce RTX 5060 X2W 8GB',price:4199,vram_gb:8,fan_count:2,tier:0,source:'第1行第3列 · 电竞叛客旗舰店'},
+        {id:'D',name:'七彩虹 5060 战斧 DUO 8GB',price:4599,vram_gb:8,fan_count:2,tier:0,source:'第2行第1列 · 七彩虹Colorful旗舰店'},
+        {id:'E',name:'万丽 GeForce RTX 5060 OC 8GB GDDR7 雪狐',price:3999,vram_gb:8,fan_count:2,tier:0,source:'第2行第3列 · 万丽电竞旗舰店'},
+        {id:'F',name:'技嘉 GIGABYTE RTX 5060 Ti 16G',price:4899,vram_gb:16,fan_count:3,tier:1,source:'第3行第2列 · 技嘉DIY旗舰店'}
+      ]}
+  }
+};
+
+function blank(){
+  return { caseId:'custom', title:'我的新对比', scene:'', budget:1000, priceWeight:3,
+    fields:[{key:'m1',label:'综合评分（1-5）',type:'number',direction:'higher',weight:3}],
+    hard:[],
+    items:[
+      {id:'A',name:'候选一',price:199,m1:4},
+      {id:'B',name:'候选二',price:299,m1:5}
+    ]};
+}
+
+var state = null, lastResult = null;
+
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function load(){
+  try{
+    var raw = localStorage.getItem(KEY);
+    if(!raw) return null;
+    var s = JSON.parse(raw);
+    if(s && s.fields && s.items && s.hard) return s;
+  }catch(e){}
+  return null;
+}
+function normalize(s){
+  s.fields = (s.fields||[]).map(function(f){
+    return {key:String(f.key||'m'),label:String(f.label||f.key||''),
+      type:f.type==='text'?'text':'number',
+      direction:f.direction==='lower'?'lower':'higher',
+      weight:Number(f.weight)||0};
+  });
+  s.hard = (s.hard||[]).map(function(h){
+    return {field:String(h.field||'price'),op:String(h.op||'<='),
+      value:h.value,label:String(h.label||'')};
+  });
+  s.items = (s.items||[]).map(function(it,idx){
+    var o = {id:String(it.id||String.fromCharCode(65+idx)),name:String(it.name||''),price:Number(it.price)||0};
+    s.fields.forEach(function(f){
+      var v = it[f.key];
+      if(v === undefined || v === null || v === ''){ o[f.key] = f.type==='number' ? 0 : ''; return; }
+      o[f.key] = f.type==='number' ? Number(v) : String(v);
+    });
+    return o;
+  });
+  s.budget = Number(s.budget)||0;
+  s.priceWeight = Number(s.priceWeight)||0;
+  s.title = String(s.title||''); s.scene = String(s.scene||'');
+  s.caseId = String(s.caseId||'custom');
+  return s;
+}
+
+/* ---------- 表单渲染 ---------- */
+var OPS = ['<=','>=','<','>','==','!=','in','not_in'];
+var OP_TEXT = {'<=':'不超过','>=':'至少','<':'小于','>':'大于','==':'等于','!=':'不等于','in':'属于','not_in':'不属于'};
+function fieldOptions(sel){
+  var out = '<option value="price">价格</option>';
+  state.fields.forEach(function(f){ out += '<option value="'+esc(f.key)+'">'+esc(f.label||f.key)+'</option>'; });
+  return out.replace('value="'+esc(sel)+'"','value="'+esc(sel)+'" selected');
+}
+function hardValText(v){ return Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v); }
+function parseHardVal(text, op){
+  if(op==='in' || op==='not_in'){
+    return String(text).split(/[,，]/).map(function(x){ return x.trim(); }).filter(function(x){return x;})
+      .map(function(x){ return /^-?\d+(\.\d+)?$/.test(x) ? Number(x) : x; });
+  }
+  var t = String(text).trim();
+  if(/^-?\d+(\.\d+)?$/.test(t)) return Number(t);
+  return t;
+}
+
+function renderFields(){
+  $('#fields').innerHTML = state.fields.map(function(f,i){
+    return '<div class="row" data-fi="'+i+'">'+
+      '<div class="hd"><span>比较项 '+(i+1)+' · '+(f.weight>0?'参与打分':'只用于筛选')+'</span>'+
+      '<button class="del" data-del="field" data-i="'+i+'">删除</button></div>'+
+      '<div class="grid">'+
+        '<input class="full f-label" data-i="'+i+'" placeholder="名称，如：重量" value="'+esc(f.label)+'">'+
+        '<select class="f-type" data-i="'+i+'"><option value="number"'+(f.type==='number'?' selected':'')+'>数字</option>'+
+          '<option value="text"'+(f.type==='text'?' selected':'')+'>文字</option></select>'+
+        '<select class="f-dir" data-i="'+i+'"><option value="higher"'+(f.direction==='higher'?' selected':'')+'>越大越好</option>'+
+          '<option value="lower"'+(f.direction==='lower'?' selected':'')+'>越小越好</option></select>'+
+      '</div>'+
+      '<div class="wline"><span class="small">权重</span>'+
+        '<input type="range" class="f-weight" data-i="'+i+'" min="0" max="5" step="1" value="'+f.weight+'">'+
+        '<span class="wv">'+f.weight+'</span></div>'+
+    '</div>';
+  }).join('');
+}
+function renderHards(){
+  $('#hards').innerHTML = state.hard.map(function(h,i){
+    var ops = OPS.map(function(o){ return '<option value="'+o+'"'+(h.op===o?' selected':'')+'>'+OP_TEXT[o]+'</option>'; }).join('');
+    return '<div class="row" data-hi="'+i+'">'+
+      '<div class="hd"><span>硬要求 '+(i+1)+'</span><button class="del" data-del="hard" data-i="'+i+'">删除</button></div>'+
+      '<div class="hrow">'+
+        '<select class="h-field" data-i="'+i+'">'+fieldOptions(h.field)+'</select>'+
+        '<select class="h-op" data-i="'+i+'">'+ops+'</select>'+
+        '<input class="h-value" data-i="'+i+'" placeholder="值，多个用逗号分隔" value="'+esc(hardValText(h.value))+'">'+
+        '<input class="full h-label" data-i="'+i+'" placeholder="理由（会写进报告）" value="'+esc(h.label)+'">'+
+      '</div></div>';
+  }).join('');
+}
+function renderItems(){
+  $('#items').innerHTML = state.items.map(function(it,i){
+    var fs = state.fields.map(function(f){
+      var v = it[f.key];
+      return '<div><label>'+esc(f.label||f.key)+'</label>'+
+        '<input class="i-field" data-i="'+i+'" data-key="'+esc(f.key)+'" '+
+        (f.type==='number'?'type="number" inputmode="decimal"':'type="text"')+
+        ' value="'+esc(v == null ? '' : v)+'"></div>';
+    }).join('');
+    return '<div class="item" data-ii="'+i+'">'+
+      '<div class="hd"><span>候选 '+it.id+'</span><button class="del" data-del="item" data-i="'+i+'">删除</button></div>'+
+      '<div class="top">'+
+        '<input class="i-name" data-i="'+i+'" placeholder="名称" value="'+esc(it.name)+'">'+
+        '<input class="i-price" data-i="'+i+'" type="number" inputmode="decimal" placeholder="价格" value="'+esc(it.price)+'">'+
+      '</div>'+
+      '<div class="fields">'+fs+'</div></div>';
+  }).join('');
+}
+function renderForm(){
+  $('#fTitle').value = state.title;
+  $('#fScene').value = state.scene;
+  $('#fBudget').value = state.budget;
+  $('#fPriceWeight').innerHTML = [0,1,2,3,4,5].map(function(n){
+    return '<option value="'+n+'"'+(state.priceWeight===n?' selected':'')+'>'+n+'</option>';
+  }).join('');
+  renderFields(); renderHards(); renderItems();
+}
+
+/* ---------- 表单 → 引擎输入 ---------- */
+function buildCase(){
+  var needs = { title:state.title, scene:state.scene, budget:state.budget,
+                weights:{}, directions:{}, hard:[] };
+  if(state.priceWeight>0){ needs.weights.price = state.priceWeight; needs.directions.price = 'lower'; }
+  state.fields.forEach(function(f){
+    if(f.weight>0 && f.type==='number'){
+      needs.weights[f.key] = f.weight;
+      needs.directions[f.key] = f.direction;
+    }
+  });
+  state.hard.forEach(function(h){ needs.hard.push({field:h.field,op:h.op,value:h.value,label:h.label||h.field}); });
+  var items = state.items.map(function(it){
+    var o = {id:it.id,name:it.name,price:it.price};
+    state.fields.forEach(function(f){ o[f.key] = it[f.key]; });
+    return o;
+  });
+  return {needs:needs, items:items};
+}
+
+/* ---------- 报告渲染 ---------- */
+function fmt(n){ return (Math.round(Number(n)*100)/100).toFixed(2); }
+function lab(key){
+  var map = {price:'价格',footprint:'占地',easy_clean:'易清洗',durability:'耐用',noise:'噪音',
+    weight:'重量',weight_kg:'重量(kg)',battery_h:'续航(h)',ram_gb:'内存(GB)',
+    vram_gb:'显存(GB)',fan_count:'风扇数',tier:'型号档位'};
+  var f = state.fields.filter(function(x){return x.key===key;})[0];
+  return map[key] || (f && f.label) || (key==='price'?'价格':key);
+}
+function renderReport(res){
+  var el = $('#report');
+  if(res.errors.length){
+    el.innerHTML = '<div class="err">先修好这几处，再生成报告：</div><ul class="plain">'+
+      res.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>';
+    return;
+  }
+  var r = res.result;
+  var html = '';
+  if(!r.accepted.length){
+    html += '<div class="hero"><div class="k">裁决</div><div class="name">没有候选通过硬约束</div>'+
+      '<div class="small">这不是打分问题，是要求或候选需要放宽。下面逐条写了被淘汰的原因。</div></div>';
+  }else{
+    var w = r.winner;
+    html += '<div class="hero"><div class="k">按你写的标准，该选</div>'+
+      '<div class="name">'+esc(w.name)+'</div><div class="nums">'+
+      '<div><b>'+fmt(w.total)+'</b>总分</div><div><b>¥'+esc(w.price)+'</b>价格</div>'+
+      '<div><b>'+r.accepted.length+' / '+(r.accepted.length+r.rejected.length)+'</b>通过 / 共候选</div></div></div>';
+    var max = Math.max.apply(null, r.accepted.map(function(x){return x.total;})) || 1;
+    html += '<div class="sec">排名与得分</div>';
+    r.accepted.forEach(function(s,i){
+      html += '<div class="rank"><div class="line"><span>'+(i+1)+'. '+esc(s.name)+
+        ' <span class="badge">¥'+esc(s.price)+'</span></span><b>'+fmt(s.total)+'</b></div>'+
+        '<div class="bar"><i style="width:'+Math.max(2,Math.round(s.total/max*100))+'%"></i></div></div>';
+    });
+  }
+  if(r.rejected.length){
+    html += '<div class="sec">为什么没选它们</div><ul class="plain">';
+    r.rejected.forEach(function(x){
+      html += '<li><b>'+esc(x.name)+'</b><br>'+x.reasons.map(function(t){return esc(t);}).join('<br>')+'</li>';
+    });
+    html += '</ul>';
+  }
+  if(r.moves.length){
+    html += '<div class="sec">第二名要怎样才会赢</div>'+
+      '<div class="small">当前差距 '+fmt(r.winner.total - r.runner_up.total)+' 分；只改一个条件、改动最小的路径：</div><ul class="plain">';
+    r.moves.slice(0,3).forEach(function(m){
+      var dir = r.directions[m.metric]==='lower' ? '降到' : '提到';
+      html += '<li><b>'+esc(lab(m.metric))+'</b> 从 '+esc(m.current)+' '+dir+' '+esc(m.target)+
+        '（跨越该指标范围的 '+Math.round(m.relative*100)+'%）</li>';
+    });
+    html += '</ul><div class="small">线性模型的解析解，不是猜测。对 8G/16G 这类离散规格，中间值现实中可能并不存在。</div>';
+  }else if(r.accepted.length>=2){
+    html += '<div class="sec">第二名要怎样才会赢</div><div class="small">单改任一条件都追不上，需要同时调整多个条件。</div>';
+  }
+  if(r.sensitivity && r.sensitivity.trials){
+    var s = r.sensitivity;
+    html += '<div class="sec">这个结论稳不稳</div><div class="small">把每个权重分别上下调 25%，共重算 '+
+      s.trials+' 次，第一名变化 '+s.flips.length+' 次 → <b>'+esc(s.verdict)+'</b>。'+
+      (s.flips.length?' 容易翻转：'+esc(s.flips.join('、')):'')+'</div>';
+  }
+  html += '<details><summary>看这份报告的文字版（可复制进笔记或 git）</summary><pre id="mdBox"></pre>'+
+    '<button class="mini" id="btnCopyMd2" style="margin-top:8px">复制文字版</button></details>';
+  el.innerHTML = html;
+  $('#mdBox').textContent = markdown(r);
+  var b = $('#btnCopyMd2'); if(b) b.onclick = function(){ copy(markdown(r)); };
+  lastResult = r;
+}
+
+function markdown(r){
+  var L = ['# '+r.title,'','> 案例 `'+r.case_id+'` · 预算 ¥'+r.budget+' · specpick 网页版生成，可复现',''];
+  if(r.scene) L = L.concat(['**场景**：'+r.scene,'']);
+  L = L.concat(['## 我的需求规格','','| 指标 | 方向 | 权重 |','| --- | --- | --- |']);
+  Object.keys(r.weights).forEach(function(m){
+    L.push('| '+lab(m)+' (`'+m+'`) | '+(r.directions[m]==='higher'?'越大越好':'越小越好')+' | '+r.weights[m]+' |');
+  });
+  L.push('');
+  if(r.hard_rules.length){
+    L = L.concat(['**硬性约束**（不满足即淘汰）：','']);
+    r.hard_rules.forEach(function(h){ L.push('- '+h.label+'：`'+h.field+'` '+h.op+' `'+String(h.value)+'`'); });
+    L.push('');
+  }
+  L = L.concat(['## 裁决','']);
+  if(!r.accepted.length){ L = L.concat(['**没有候选通过硬约束。**','']); }
+  else{
+    var ms = Object.keys(r.weights);
+    L.push('| 排名 | 候选 | 售价 | 总分 | '+ms.map(lab).join(' | ')+' |');
+    L.push('| --- | --- | --- | --- | '+ms.map(function(){return '---';}).join(' | ')+' |');
+    r.accepted.forEach(function(s,i){
+      L.push('| '+(i+1)+' | '+s.name+' | ¥'+s.price+' | **'+fmt(s.total)+'** | '+
+        ms.map(function(m){return fmt(s.parts[m]);}).join(' | ')+' |');
+    });
+    L = L.concat(['','**结论**：'+r.winner.name+' 胜出。','']);
+  }
+  if(r.rejected.length){
+    L = L.concat(['## 淘汰清单（含逐条理由）','']);
+    r.rejected.forEach(function(x){
+      L.push('- **'+x.name+'**');
+      x.reasons.forEach(function(t){ L.push('  - '+t); });
+    });
+    L.push('');
+  }
+  if(r.moves.length){
+    L = L.concat(['## 反事实：第二名要怎样才会赢','',
+      '当前差距 '+fmt(r.winner.total-r.runner_up.total)+' 分。只改一个字段、改动幅度最小的路径：','']);
+    r.moves.slice(0,3).forEach(function(m){
+      L.push('- **'+lab(m.metric)+'** 从 `'+m.current+'` '+
+        (r.directions[m.metric]==='lower'?'降到':'提到')+' `'+m.target+'` '+
+        '（跨越该指标取值范围的 '+Math.round(m.relative*100)+'%）即可追平或反超');
+    });
+    L = L.concat(['','> 这是线性模型的解析解，不是猜测；改多个字段的组合不在 v0 范围内。','']);
+  }
+  if(r.sensitivity && r.sensitivity.trials){
+    var s = r.sensitivity;
+    L = L.concat(['## 权重敏感性','',
+      '对每个权重做 ±25% 扰动，共 '+s.trials+' 次重算，第一名变化 '+s.flips.length+
+      ' 次 → **'+s.verdict+'**。','']);
+  }
+  L = L.concat(['---','','本报告由 specpick 生成：同样的输入永远得到同样的输出。','']);
+  return L.join('\n');
+}
+
+/* ---------- TOML 导出 ---------- */
+function tStr(s){ return '"'+String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n')+'"'; }
+function tVal(v){
+  if(Array.isArray(v)) return '['+v.map(function(x){return typeof x==='number'?String(x):tStr(x);}).join(', ')+']';
+  if(typeof v==='number') return String(v);
+  return tStr(v);
+}
+function toToml(){
+  var c = buildCase(), n = c.needs;
+  var L = ['# 由 specpick 网页版导出，可直接用 python -m specpick decide <目录> 复现',
+    'title = '+tStr(n.title),''];
+  if(n.scene) L.push('scene = '+tStr(n.scene));
+  L = L.concat(['budget = '+n.budget,'','[weights]']);
+  Object.keys(n.weights).forEach(function(m){ L.push(m+' = '+n.weights[m]); });
+  L = L.concat(['','[directions]']);
+  Object.keys(n.directions).forEach(function(m){ L.push(m+' = '+tStr(n.directions[m])); });
+  n.hard.forEach(function(h){
+    L = L.concat(['','[[hard]]','field = '+tStr(h.field),'op = '+tStr(h.op),
+      'value = '+tVal(h.value),'label = '+tStr(h.label)]);
+  });
+  var I = ['# 由 specpick 网页版导出，价格与参数为录入值，非实时报价',''];
+  c.items.forEach(function(it){
+    I = I.concat(['[[item]]','id = '+tStr(it.id),'name = '+tStr(it.name),'price = '+it.price]);
+    state.fields.forEach(function(f){ I.push(f.key+' = '+tVal(it[f.key])); });
+    I.push('');
+  });
+  return {needs:L.join('\n')+'\n', items:I.join('\n')};
+}
+
+function copy(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ toast('已复制'); },
+      function(){ toast('复制失败，请长按文本框手动复制'); });
+  }else{ toast('请长按文本框手动复制'); }
+}
+var toastTimer = null;
+function toast(msg){
+  var el = $('#status');
+  if(!el){ el = document.createElement('div'); el.id='status';
+    el.style.cssText='position:static;text-align:center;font-size:13px;color:var(--accent);margin-top:8px;min-height:18px';
+    $('#formCard').appendChild(el); }
+  el.textContent = msg;
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ el.textContent=''; }, 2600);
+}
+
+/* ---------- 事件 ---------- */
+function sync(){
+  state.title = $('#fTitle').value;
+  state.scene = $('#fScene').value;
+  state.budget = Number($('#fBudget').value)||0;
+  state.priceWeight = Number($('#fPriceWeight').value)||0;
+  Array.prototype.forEach.call(document.querySelectorAll('.f-label'),function(el){ state.fields[+el.dataset.i].label = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.f-type'),function(el){
+    var f = state.fields[+el.dataset.i]; f.type = el.value;
+    if(f.type==='text') f.weight = 0;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.f-dir'),function(el){ state.fields[+el.dataset.i].direction = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.f-weight'),function(el){
+    var f = state.fields[+el.dataset.i];
+    f.weight = (f.type==='text') ? 0 : Number(el.value);
+    var v = el.parentNode.querySelector('.wv'); if(v) v.textContent = f.weight;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.h-field'),function(el){ state.hard[+el.dataset.i].field = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.h-op'),function(el){ state.hard[+el.dataset.i].op = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.h-value'),function(el){
+    var h = state.hard[+el.dataset.i]; h.value = parseHardVal(el.value, h.op);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.h-label'),function(el){ state.hard[+el.dataset.i].label = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.i-name'),function(el){ state.items[+el.dataset.i].name = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.i-price'),function(el){ state.items[+el.dataset.i].price = Number(el.value)||0; });
+  Array.prototype.forEach.call(document.querySelectorAll('.i-field'),function(el){
+    var it = state.items[+el.dataset.i], key = el.dataset.key;
+    var f = state.fields.filter(function(x){return x.key===key;})[0];
+    it[key] = (f && f.type==='number') ? (Number(el.value)||0) : el.value;
+  });
+  save();
+}
+function run(){
+  sync();
+  var c = buildCase();
+  var res = Specpick.decide(c.needs, c.items, state.caseId);
+  renderReport(res);
+  var t = toToml();
+  $('#tomlNeeds').value = t.needs; $('#tomlItems').value = t.items;
+  if(window.innerWidth < 920) $('#reportCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function nextKey(){
+  var used = {}; state.fields.forEach(function(f){ used[f.key]=1; });
+  var i=1; while(used['m'+i]) i++;
+  return 'm'+i;
+}
+function nextId(){
+  var used = {}; state.items.forEach(function(it){ used[it.id]=1; });
+  for(var c=65;c<=90;c++){ var s=String.fromCharCode(c); if(!used[s]) return s; }
+  return 'N'+(state.items.length+1);
+}
+function setCase(id){
+  state = normalize(JSON.parse(JSON.stringify(id==='blank' ? blank() : CASES[id].data)));
+  $('#caseSel').value = id;
+  $('#caseDesc').textContent = id==='blank' ? '从最简单的两件商品开始，随便改' : CASES[id].desc;
+  renderForm(); save(); run();
+}
+
+$('#caseSel').addEventListener('change', function(){ setCase(this.value); });
+$('#btnBlank').onclick = function(){ setCase('blank'); };
+$('#btnExport').onclick = function(){
+  sync();
+  var blob = new Blob([JSON.stringify({version:1,data:state},null,2)],{type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'specpick-'+(state.caseId||'case')+'.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast('已导出备份文件');
+};
+$('#btnImport').onclick = function(){ $('#fileInput').click(); };
+$('#fileInput').addEventListener('change', function(){
+  var f = this.files && this.files[0]; if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try{
+      var j = JSON.parse(reader.result);
+      var d = j.data || j;
+      if(!d || !Array.isArray(d.fields) || !Array.isArray(d.items)) throw new Error('格式不对');
+      state = normalize(d);
+      $('#caseSel').value = '';
+      $('#caseDesc').textContent = '已导入本机备份';
+      renderForm(); save(); run();
+      toast('备份已载入');
+    }catch(e){ toast('导入失败：'+e.message); }
+  };
+  reader.readAsText(f); this.value='';
+});
+$('#formCard').addEventListener('input', function(e){
+  if(e.target.type==='range'){ var v=e.target.parentNode.querySelector('.wv'); if(v) v.textContent=e.target.value; }
+});
+$('#formCard').addEventListener('change', function(e){
+  if(e.target.classList.contains('f-type') && e.target.value==='text'){
+    var row = e.target.closest('.row');
+    var r = row.querySelector('.f-weight'); if(r){ r.value=0; var v=row.querySelector('.wv'); if(v) v.textContent='0'; }
+  }
+  if(e.target.classList.contains('f-price')) return;
+});
+$('#formCard').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if(!b) return;
+  var act = b.dataset.del;
+  if(act){
+    sync();
+    var i = +b.dataset.i;
+    if(act==='field'){
+      var key = state.fields[i].key;
+      state.fields.splice(i,1);
+      state.items.forEach(function(it){ delete it[key]; });
+      state.hard = state.hard.filter(function(h){ return h.field!==key; });
+    }else if(act==='hard'){ state.hard.splice(i,1); }
+    else if(act==='item'){ state.items.splice(i,1); }
+    renderForm(); save(); return;
+  }
+});
+$('#btnAddField').onclick = function(){
+  sync();
+  var k = nextKey();
+  state.fields.push({key:k,label:'新比较项',type:'number',direction:'higher',weight:3});
+  state.items.forEach(function(it){ it[k] = 3; });
+  renderForm(); save();
+};
+$('#btnAddHard').onclick = function(){
+  sync();
+  state.hard.push({field:'price',op:'<=',value:state.budget||0,label:'（写清楚为什么）'});
+  renderForm(); save();
+};
+$('#btnAddItem').onclick = function(){
+  sync();
+  var it = {id:nextId(),name:'新候选',price:0};
+  state.fields.forEach(function(f){ it[f.key] = f.type==='number' ? 0 : ''; });
+  state.items.push(it);
+  renderForm(); save();
+};
+$('#btnRun').onclick = run;
+$('#btnToml').onclick = function(){ sync(); var t=toToml(); $('#tomlNeeds').value=t.needs;
+  $('#tomlItems').value=t.items; $('#tomlBox').classList.toggle('hidden'); };
+$('#btnCopyNeeds').onclick = function(){ copy($('#tomlNeeds').value); };
+$('#btnCopyItems').onclick = function(){ copy($('#tomlItems').value); };
+$('#btnMd').onclick = function(){ copy(lastResult ? markdown(lastResult) : '请先生成报告'); };
+
+/* ---------- 启动 ---------- */
+(function boot(){
+  var opts = '<option value="blank">空白新对比</option>';
+  Object.keys(CASES).forEach(function(k){ opts += '<option value="'+k+'">'+esc(CASES[k].data.title)+'</option>'; });
+  $('#caseSel').innerHTML = opts;
+  var saved = load();
+  if(saved){
+    state = normalize(saved);
+    var known = CASES[state.caseId];
+    $('#caseSel').value = known ? state.caseId : 'blank';
+    $('#caseDesc').textContent = known ? known.desc : '上次在本机编辑的内容已自动恢复';
+    renderForm(); run();
+  }else{
+    setCase('kitchen');
+  }
+})();
+})();
+</script>
+</body>
+</html>
