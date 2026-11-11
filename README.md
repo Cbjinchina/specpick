@@ -1,5 +1,7 @@
 # specpick
 
+> **第一次用？** 直接看 [GUIDE.md · 一眼看懂的 30 秒操作指引](GUIDE.md)（配图、三步、手机电脑都适用）。本页是设计与开发说明。
+
 **不猜你喜欢什么，只回答：按我写下的标准，谁该赢、另一个为什么输了、要改哪个条件它才会赢。以及三个月后，我当初判断对不对。**
 
 把「我的需求」写成一份可 `git diff` 的 TOML 规格，对**你已经在看的 3–20 个候选**做可解释裁决。全部逻辑是纯函数：命令行版 100% Python 标准库，网页版是零依赖的纯 JS，**同一套算法的两个实现，逐字段交叉校验**；零 API Key、零爬虫、零数据库、零随机数，同样的输入永远得到同样的输出。
@@ -12,7 +14,7 @@
 
 | 怎么用 | 地址 / 命令 |
 | --- | --- |
-| 手机 / 电脑在线 | `https://cbjinchina.github.io/specpick/`（仓库自带 Pages 发布流程；首次需在 Settings → Pages 把 Source 设为 GitHub Actions） |
+| 手机 / 电脑在线 | `https://cbjinchina.github.io/specpick/`（**尚未启用**：仓库自带 Pages 发布流程，首次需在 Settings → Pages 把 Source 设为 GitHub Actions） |
 | 完全离线 / 发给别人 | 打开 `web/specpick.html`，这是打包好的**单文件**，存到手机里双击即用 |
 | 开发调试 | `python playground/server.py 8765` → `http://127.0.0.1:8765`（含图片辅助录入的完整测试台） |
 | 命令行 / 可 git 版本化 | 下面「三条命令」 |

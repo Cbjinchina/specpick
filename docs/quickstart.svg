@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" role="img" aria-label="specpick 三步上手示意图">
+<rect width="960" height="470" fill="#f6f8fa"/>
+<text x="40" y="50" font-size="26" font-weight="700" fill="#1f2328" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif">30 秒上手 · 3 步出结果</text>
+<text x="40" y="78" font-size="14" fill="#57606a" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif">手机、电脑都一样：不用装软件、不用注册、不联网</text>
+
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif" transform="translate(40,104)">
+  <rect width="280" height="306" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="34" cy="38" r="18" fill="#e7f3ec"/>
+  <text x="34" y="45" font-size="19" font-weight="700" text-anchor="middle" fill="#176b4d">1</text>
+  <text x="62" y="45" font-size="18" font-weight="600" fill="#1f2328">打开，选个例子</text>
+  <rect x="20" y="70" width="240" height="42" rx="9" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="32" y="96" font-size="14" fill="#1f2328">小厨房的沥水架   ▾</text>
+  <rect x="20" y="122" width="240" height="36" rx="8" fill="#e7f3ec"/>
+  <text x="32" y="145" font-size="12" fill="#176b4d">打开就自动填好，照着改就行</text>
+  <line x1="20" y1="196" x2="260" y2="196" stroke="#d8dee4"/>
+  <text x="20" y="224" font-size="13" fill="#1f2328">· 浏览器打开链接，或双击文件</text>
+  <text x="20" y="250" font-size="13" fill="#1f2328">· 例子已填好，直接改成你的</text>
+  <text x="20" y="276" font-size="13" fill="#1f2328">· 想从零来点「空白新对比」</text>
+  <text x="20" y="302" font-size="12" fill="#57606a">手机 / 电脑 / 断网都能用</text>
+</g>
+
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif" transform="translate(340,104)">
+  <rect width="280" height="306" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="34" cy="38" r="18" fill="#e7f3ec"/>
+  <text x="34" y="45" font-size="19" font-weight="700" text-anchor="middle" fill="#176b4d">2</text>
+  <text x="62" y="45" font-size="18" font-weight="600" fill="#1f2328">改成你要买的东西</text>
+  <rect x="20" y="70" width="240" height="38" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="32" y="94" font-size="13" fill="#1f2328">A   我在看的第一款      5999</text>
+  <rect x="20" y="114" width="240" height="38" rx="8" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="32" y="138" font-size="13" fill="#1f2328">B   另一款                6499</text>
+  <text x="22" y="180" font-size="13" fill="#176b4d">+ 添加一个候选</text>
+  <line x1="20" y1="196" x2="260" y2="196" stroke="#d8dee4"/>
+  <text x="20" y="224" font-size="13" fill="#1f2328">· 在「4 正在看的几个候选」</text>
+  <text x="20" y="250" font-size="13" fill="#1f2328">· 每个白框 = 一件商品</text>
+  <text x="20" y="276" font-size="13" fill="#1f2328">· 填名字、价格、各项数字</text>
+  <text x="20" y="302" font-size="12" fill="#57606a">还能加「必须满足」卡掉不合格的</text>
+</g>
+
+<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif" transform="translate(640,104)">
+  <rect width="280" height="306" rx="14" fill="#ffffff" stroke="#d0d7de"/>
+  <circle cx="34" cy="38" r="18" fill="#e7f3ec"/>
+  <text x="34" y="45" font-size="19" font-weight="700" text-anchor="middle" fill="#176b4d">3</text>
+  <text x="62" y="45" font-size="18" font-weight="600" fill="#1f2328">点绿色按钮看结果</text>
+  <rect x="20" y="70" width="240" height="44" rx="10" fill="#176b4d"/>
+  <text x="140" y="98" text-anchor="middle" font-size="15" font-weight="600" fill="#ffffff">生成裁决报告</text>
+  <rect x="20" y="124" width="240" height="62" rx="9" fill="#f6f8fa" stroke="#d0d7de"/>
+  <text x="32" y="148" font-size="13" font-weight="600" fill="#176b4d">胜出：A 款 · 6.00 分</text>
+  <text x="32" y="170" font-size="12" fill="#57606a">淘汰 1 个 · 改 1 个数字可反超</text>
+  <line x1="20" y1="196" x2="260" y2="196" stroke="#d8dee4"/>
+  <text x="20" y="224" font-size="13" fill="#1f2328">· 点「生成裁决报告」</text>
+  <text x="20" y="250" font-size="13" fill="#1f2328">· 手机上看结果在下方</text>
+  <text x="20" y="276" font-size="13" fill="#1f2328">· 谁赢、谁输、怎么翻盘</text>
+  <text x="20" y="302" font-size="12" fill="#57606a">同一份输入，永远同一份结果</text>
+</g>
+
+<text x="40" y="444" font-size="13" fill="#57606a" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,PingFang SC,Microsoft YaHei,sans-serif">不上传任何数据 · 只存在这台设备 · 刷新自动恢复 · 换设备用「导出备份 / 导入备份」</text>
+</svg>

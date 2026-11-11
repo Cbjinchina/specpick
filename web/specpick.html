@@ -85,7 +85,26 @@ select.pick{max-width:100%;font-size:15px}
 .hrow{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:8px}
 .hrow .full{grid-column:1 / -1}
 .hidden{display:none}
+.guide{max-width:1080px;margin:0 auto 14px;padding:16px 18px;background:var(--accent-bg);
+  border:1px solid var(--accent);border-radius:14px}
+.guide-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.guide-title{font-size:17px;font-weight:700;line-height:1.4}
+.guide-sub{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0 12px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-size:13px;line-height:1.5;display:flex;gap:9px;align-items:flex-start;min-width:0}
+.step b{flex:0 0 24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+.step span{min-width:0;overflow-wrap:anywhere}
+.guide .toolbar{margin-top:0}
+.guide details{margin-top:12px;border-top:1px solid var(--accent);padding-top:10px}
+.guide summary{color:var(--accent)}
+.guide ul.plain{font-size:13px;margin:8px 0 0}
+@keyframes flash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px var(--accent)}}
+.flash{animation:flash 1.3s ease 2}
 @media(max-width:600px){
+  .guide{padding:14px}
+  .steps{grid-template-columns:1fr}
   .two{grid-template-columns:1fr}
   .hrow{grid-template-columns:minmax(0,1fr) 84px}
   .hrow .h-value,.hrow .full{grid-column:1 / -1}
@@ -101,6 +120,35 @@ select.pick{max-width:100%;font-size:15px}
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
 </header>
+
+<div id="guide" class="guide">
+  <div class="guide-head">
+    <div>
+      <div class="guide-title">第一次用？3 步，30 秒</div>
+      <div class="guide-sub">下面已经帮你填好一个例子，直接改成你要买的东西就行。</div>
+    </div>
+    <button class="mini" id="btnGuideHide">收起</button>
+  </div>
+  <div class="steps">
+    <div class="step"><b>1</b><span>打开就有<strong>填好的例子</strong>，不用从零开始</span></div>
+    <div class="step"><b>2</b><span>在「<strong>4 正在看的几个候选</strong>」里改成你的商品和数字</span></div>
+    <div class="step"><b>3</b><span>点绿色的<strong>「生成裁决报告」</strong>，右边出结果</span></div>
+  </div>
+  <div class="toolbar">
+    <button class="mini" id="btnDemo">带我走一遍</button>
+  </div>
+  <details>
+    <summary>常见问题（在哪填物品 / 能加图片吗 / 换设备怎么办）</summary>
+    <ul class="plain">
+      <li><strong>在哪里填我要对比的物品？</strong>往下找到「4 正在看的几个候选」，一个白框 = 一件商品，点「+ 添加一个候选」加更多。</li>
+      <li><strong>能对比电脑吗？</strong>能。最上面的下拉框里就有「笔记本电脑 · 通勤办公」这个现成案例。</li>
+      <li><strong>能丢张截图让 AI 自动对比吗？</strong>网页版不识图、不联网。只有本地测试台支持图片辅助录入，而且模型只负责读出参数，数字要你核对，打分和结论仍由纯规则算。</li>
+      <li><strong>填的东西会上传吗？</strong>不会，只存在这台设备的浏览器里，刷新自动恢复。</li>
+      <li><strong>换手机怎么办？</strong>点「导出备份」存一个 .json，新设备点「导入备份」。</li>
+      <li><strong>手机上报告在哪？</strong>在表单下方，往下划就能看到。</li>
+    </ul>
+  </details>
+</div>
 
 <div class="wrap">
   <div class="col">
@@ -137,7 +185,7 @@ select.pick{max-width:100%;font-size:15px}
       <button class="mini" id="btnAddHard">+ 添加一条硬要求</button>
 
       <h2 style="margin-top:20px"><span class="n">4</span> 正在看的几个候选</h2>
-      <p class="tip">只填你真正会买的那几个，3–8 个就够。价格填数字，不用写 ¥。</p>
+      <p class="tip"><strong>这里就是填你要对比的物品</strong>：一个白框 = 一件商品，改名字、价格和各比较项的数字；不够就点下面的「+ 添加一个候选」。只填真正会买的 3–8 个，价格写数字、不用写 ¥。</p>
       <div id="items"></div>
       <button class="mini" id="btnAddItem">+ 添加一个候选</button>
 
@@ -170,6 +218,7 @@ select.pick{max-width:100%;font-size:15px}
   specpick 网页版 · 与命令行版是同一套算法的两个实现，结果可交叉校验。
   不上传任何数据、不用 API Key、不抓商品；关掉网页数据仍留在本机浏览器里。
   换设备时用「导出备份 / 导入备份」搬走。
+  <div style="margin-top:8px"><button class="mini" id="btnGuideOpen">显示 3 步新手引导</button></div>
 </footer>
 
 <script>
@@ -970,6 +1019,29 @@ $('#btnToml').onclick = function(){ sync(); var t=toToml(); $('#tomlNeeds').valu
 $('#btnCopyNeeds').onclick = function(){ copy($('#tomlNeeds').value); };
 $('#btnCopyItems').onclick = function(){ copy($('#tomlItems').value); };
 $('#btnMd').onclick = function(){ copy(lastResult ? markdown(lastResult) : '请先生成报告'); };
+
+/* ---------- 新手引导 ---------- */
+var GUIDE_KEY = 'specpick.guide.hidden.v1';
+function guideHidden(){ try{ return localStorage.getItem(GUIDE_KEY)==='1'; }catch(e){ return false; } }
+function setGuide(hide){
+  if(hide) $('#guide').classList.add('hidden'); else $('#guide').classList.remove('hidden');
+  try{ if(hide) localStorage.setItem(GUIDE_KEY,'1'); else localStorage.removeItem(GUIDE_KEY); }catch(e){}
+}
+if(guideHidden()) $('#guide').classList.add('hidden');
+$('#btnGuideHide').onclick = function(){ setGuide(true); };
+$('#btnGuideOpen').onclick = function(){ setGuide(false); window.scrollTo(0,0); };
+$('#btnDemo').onclick = function(){
+  setCase('kitchen');
+  setGuide(false);
+  var box = $('#items');
+  if(box){
+    box.classList.remove('flash');
+    void box.offsetWidth;
+    box.classList.add('flash');
+    if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  toast('例子已填好：改这里的名字和数字，再点绿色按钮');
+};
 
 /* ---------- 启动 ---------- */
 (function boot(){
