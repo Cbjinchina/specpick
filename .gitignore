@@ -15,3 +15,6 @@ playground/inbox/*
 !playground/inbox/.gitkeep
 .playground-token
 .push-token
+
+# 演示文稿工具的本地缓存
+.slidep/
