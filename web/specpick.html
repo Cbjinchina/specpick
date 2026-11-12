@@ -164,6 +164,20 @@ select.pick{max-width:100%;font-size:15px}
       </div>
     </div>
 
+    <div class="card" id="visionCard" style="display:none">
+      <h2><span class="n">📷</span> 拍张截图，自动填表</h2>
+      <div class="tip">
+        由云端多模态模型读图，<b>你不用申请任何 Key</b>。只读名称和参数，<b>不打分、不排序、不推荐</b>。<br>
+        图片只用于这次识别，不会被存成商品库。
+      </div>
+      <input type="file" id="visionFile" accept="image/*" class="hidden">
+      <button class="primary" id="btnVisionPick" style="margin-bottom:10px">拍照 / 从相册选图</button>
+      <div class="toolbar">
+        <button class="mini" id="btnVisionDemo">用示例截图试一下</button>
+      </div>
+      <div class="tip" id="visionNote" style="margin:10px 0 0"></div>
+    </div>
+
     <div class="card" id="pasteCard">
       <h2><span class="n">＋</span> 有截图？粘文字，自动填表</h2>
       <div class="tip">
@@ -235,6 +249,8 @@ select.pick{max-width:100%;font-size:15px}
   <div style="margin-top:8px"><button class="mini" id="btnGuideOpen">显示 3 步新手引导</button></div>
 </footer>
 
+<!-- 云端识图（免密钥）。离线单文件里这个脚本加载不到，会自动隐藏该入口，其余功能照常 -->
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js" onerror="window.__cloudSdkFailed=true"></script>
 <script>
 /* 从「截图里复制出来的文字」里把候选商品还原成结构化数据。
  *
@@ -1222,6 +1238,177 @@ $('#btnAddItem').onclick = function(){
   state.items.push(it);
   renderForm(); save();
 };
+/* ---------- 云端识图：截图 → 结构化候选（模型只做录入，不打分） ---------- */
+var CLOUD_CFG = {
+  endpoint: 'https://specpick.app.workbuddy.host',
+  publishableKey: 'wbpk_gwKJYKrK0tL4og0BAnEXf4_DuVFsdgU7d26G19X951yuOqUqW8EWS8N'
+};
+var cloudClient = null, visionBusy = false, lastVisionAt = 0;
+
+function cloudReady(){
+  return !window.__cloudSdkFailed && typeof WorkBuddyCloud !== 'undefined'
+    && WorkBuddyCloud && typeof WorkBuddyCloud.createWorkBuddyCloud === 'function';
+}
+function getCloud(){
+  if(!cloudClient && cloudReady()){
+    cloudClient = WorkBuddyCloud.createWorkBuddyCloud({
+      endpoint: CLOUD_CFG.endpoint,
+      publishableKey: CLOUD_CFG.publishableKey
+    });
+  }
+  return cloudClient;
+}
+function vNote(msg){ $('#visionNote').textContent = msg; }
+
+function imgToDataUrl(src, maxSide){
+  return new Promise(function(resolve, reject){
+    var img = new Image();
+    img.onload = function(){
+      var s = Math.min(1, maxSide / Math.max(img.width, img.height));
+      var w = Math.round(img.width * s), h = Math.round(img.height * s);
+      var c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.86));
+    };
+    img.onerror = function(){ reject(new Error('图片读不出来')); };
+    img.src = src;
+  });
+}
+
+function parseLooseJson(text){
+  var t = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if(a >= 0 && b > a) t = t.slice(a, b + 1);
+  try { return JSON.parse(t); } catch(e){ return null; }
+}
+
+function visionErrText(e){
+  var code = (e && e.error && e.error.code) || '';
+  if(code.indexOf('auth_') === 0) return '云端校验没过：这个功能只能在正式线上地址使用，本地文件或 GitHub Pages 那份用不了。';
+  if(code.indexOf('quota_') === 0) return '识别额度用完了，稍后再试，或先用下面的「粘文字」。';
+  if(code.indexOf('gateway_') === 0 || code.indexOf('model_') === 0) return '模型服务暂时不可用，稍后再试。';
+  if(e && e.message === 'NO_SDK') return '识别服务没加载成功（可能断网了），可以改用下面的「粘文字」。';
+  return '识别失败：' + ((e && e.message) || '未知错误');
+}
+
+async function visionRecognize(dataUrl){
+  var cloud = getCloud();
+  if(!cloud) throw new Error('NO_SDK');
+
+  var models = [];
+  try { models = await cloud.llm.models.list(); } catch(e){ models = []; }
+  var usable = (models || []).filter(function(m){
+    return m && m.supportsImages === true && m.disabled !== true && m.enabled !== false;
+  });
+  var picked = usable.filter(function(m){ return m.id === 'glm-5.3-flash'; })[0] || usable[0];
+  var modelId = picked ? picked.id : 'glm-5.3-flash';
+
+  var fieldSpec = state.fields.map(function(f){
+    return f.label + '（键 ' + f.key + '，' + (f.type === 'number' ? '数字' : '文字') + '）';
+  }).join('；') || '（无额外比较项）';
+
+  var sys = '你是商品参数录入员。只把截图里看得见的商品读成 JSON。禁止评价、排序、推荐、推测、比价。读不到的字段填 null，绝不编造。只输出 JSON。';
+  var ask = '请提取这张截图里所有独立的商品卡片，按从上到下、从左到右的顺序输出：\n'
+    + '{"items":[{"name":"商品原文名称","price":1234, <其余字段>}],"notes":"读图时的口径说明"}\n'
+    + '比较项：' + fieldSpec + '\n'
+    + '规则：1) price 必须是卡片上明示的价格数字，广告图价与列表价不一致时取列表中正在售卖的那个，并在 notes 说明；'
+    + '2) name 保留品牌型号原文，不要改写；3) 图里没有的商品不要编；4) 只输出 JSON，不要解释。';
+
+  var answer = '';
+  for await (var chunk of cloud.llm.chat.completions.create({
+    model: modelId,
+    messages: [
+      { role: 'system', content: sys },
+      { role: 'user', content: [
+        { type: 'text', text: ask },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ] }
+    ],
+    stream: true,
+    response_format: { type: 'json_object' },
+    temperature: 0.1
+  })) {
+    var ch = chunk && chunk.choices && chunk.choices[0];
+    var d = ch && ch.delta;
+    if(d && d.content) answer += d.content;
+  }
+  return answer;
+}
+
+function applyVision(payload){
+  var list = (payload && payload.items ? payload.items : []).filter(function(it){
+    return it && it.name && Number(it.price) > 0;
+  });
+  if(!list.length) return 0;
+
+  var backup = JSON.stringify(state.items);
+  state.items = list.map(function(it, i){
+    var o = { id: String.fromCharCode(65 + (i % 26)), name: String(it.name).slice(0, 80), price: Number(it.price) || 0 };
+    state.fields.forEach(function(f){
+      var v = it[f.key];
+      if(v === null || v === undefined || v === ''){ o[f.key] = (f.type === 'number' ? 0 : ''); return; }
+      o[f.key] = (f.type === 'number') ? (Number(v) || 0) : String(v);
+    });
+    return o;
+  });
+
+  renderForm(); save(); run();
+
+  var blanks = 0;
+  state.items.forEach(function(it){
+    state.fields.forEach(function(f){ if(f.type === 'number' && !it[f.key]) blanks++; });
+  });
+  var msg = '识别到 ' + state.items.length + ' 件';
+  if(blanks) msg += '；有 ' + blanks + ' 个数字是 0（图里没读到），请补上再采信报告';
+  if(payload && payload.notes) msg += '。口径：' + String(payload.notes).slice(0, 120);
+  $('#visionNote').innerHTML = msg + '。 <button class="mini" id="btnUndoVision">撤销</button>';
+  $('#btnUndoVision').onclick = function(){
+    state.items = JSON.parse(backup);
+    renderForm(); save(); run();
+    vNote('已撤销，回到识别前的候选。');
+  };
+  if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+  return state.items.length;
+}
+
+async function runVision(source){
+  if(visionBusy) return;
+  if(Date.now() - lastVisionAt < 4000){ vNote('刚识别过，等两秒再试。'); return; }
+  visionBusy = true; lastVisionAt = Date.now();
+  $('#btnVisionPick').disabled = true; $('#btnVisionDemo').disabled = true;
+  vNote('正在读图……（一般 3–8 秒）');
+  try {
+    var dataUrl = (typeof source === 'string') ? await imgToDataUrl(source, 1600) : await source;
+    var raw = await visionRecognize(dataUrl);
+    var payload = parseLooseJson(raw);
+    if(!payload || !payload.items){
+      vNote('模型没返回可用的 JSON。可以重试一次，或改用「粘文字」。');
+      return;
+    }
+    var n = applyVision(payload);
+    if(!n) vNote('图里没认出带价格的商品。试试把商品列表截得更完整，或改用「粘文字」。');
+    else toast('已识别 ' + n + ' 件');
+  } catch(e){
+    vNote(visionErrText(e));
+  } finally {
+    visionBusy = false;
+    $('#btnVisionPick').disabled = false; $('#btnVisionDemo').disabled = false;
+  }
+}
+
+if(cloudReady()){
+  $('#visionCard').style.display = '';
+  $('#btnVisionPick').onclick = function(){ $('#visionFile').click(); };
+  $('#visionFile').addEventListener('change', function(){
+    var f = this.files && this.files[0]; if(!f) return;
+    if(f.size > 12 * 1024 * 1024){ vNote('图片太大了（超过 12MB），换一张或截小一点。'); this.value = ''; return; }
+    var url = URL.createObjectURL(f);
+    runVision(imgToDataUrl(url, 1600)).then(function(){ URL.revokeObjectURL(url); });
+    this.value = '';
+  });
+  $('#btnVisionDemo').onclick = function(){ runVision('example-jd.jpg'); };
+}
+
 /* ---------- 截图文字 → 自动填表 ---------- */
 $('#btnPasteClear').onclick = function(){
   $('#pasteText').value = ''; $('#pasteNote').textContent = '';
