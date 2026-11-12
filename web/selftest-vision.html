@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>vision-selftest</title>
+<style>body{font:13px/1.6 ui-monospace,Consolas,monospace;padding:16px;white-space:pre-wrap}</style>
+</head>
+<body>
+<pre id="out">idle（在地址后加 ?run=1 才会执行，避免被误触发）</pre>
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script>
+/* 诊断页：验证「云端识图」在正式域名下能否真的跑通。
+   只在 ?run=1 时执行，正常访问不会消耗额度。 */
+(function(){
+  var out = document.getElementById('out');
+  function log(s){ out.textContent = (out.textContent === 'idle' ? '' : out.textContent) + s + '\n'; }
+
+  if(location.search.indexOf('run=1') < 0){ return; }
+  out.textContent = '';
+
+  (async function(){
+    try {
+      if(typeof WorkBuddyCloud === 'undefined' || !WorkBuddyCloud.createWorkBuddyCloud){
+        log('ERR SDK_MISSING'); document.title = 'ERR'; return;
+      }
+      var cloud = WorkBuddyCloud.createWorkBuddyCloud({
+        endpoint: 'https://specpick.app.workbuddy.host',
+        publishableKey: 'wbpk_gwKJYKrK0tL4og0BAnEXf4_DuVFsdgU7d26G19X951yuOqUqW8EWS8N'
+      });
+      log('ORIGIN ' + location.origin);
+
+      var img = new Image();
+      img.src = 'example-jd.jpg';
+      await new Promise(function(res, rej){ img.onload = res; img.onerror = rej; });
+
+      var s = Math.min(1, 1400 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      var dataUrl = c.toDataURL('image/jpeg', 0.85);
+      log('IMG ' + c.width + 'x' + c.height + ' b64=' + dataUrl.length);
+
+      var models = await cloud.llm.models.list();
+      var vision = (models || []).filter(function(m){ return m && m.supportsImages === true; });
+      log('VISION_MODELS ' + vision.map(function(m){ return m.id; }).join(','));
+
+      var pick = vision.filter(function(m){ return m.id === 'glm-5.3-flash'; })[0] || vision[0];
+      var mid = (pick && pick.id) || 'glm-5.3-flash';
+      log('MODEL ' + mid);
+
+      var t0 = Date.now(), ans = '';
+      for await (var ch of cloud.llm.chat.completions.create({
+        model: mid,
+        messages: [
+          { role: 'system', content: '你是商品参数录入员，只把图里看得见的商品读成 JSON，读不到填 null，绝不编造。只输出 JSON。' },
+          { role: 'user', content: [
+            { type: 'text', text: '提取截图里所有独立商品卡片，输出 {"items":[{"name":"","price":0,"vram_gb":0,"tier":0,"fan_count":0}]}。price 取卡片上明示的当前售价；tier：5060=0、5060Ti=1；风扇数看不清填 null。只输出 JSON。' },
+            { type: 'image_url', image_url: { url: dataUrl } }
+          ] }
+        ],
+        stream: true,
+        response_format: { type: 'json_object' },
+        temperature: 0.1
+      })) {
+        var d = ch && ch.choices && ch.choices[0] && ch.choices[0].delta;
+        if(d && d.content) ans += d.content;
+      }
+      log('MS ' + (Date.now() - t0));
+      log('ANSWER ' + ans);
+      document.title = 'DONE ' + ans.length;
+    } catch (e) {
+      log('ERR ' + ((e && e.error && e.error.code) || '') + ' ' + ((e && e.message) || String(e)));
+      if(e && e.requestId) log('REQ ' + e.requestId);
+      document.title = 'ERR';
+    }
+  })();
+})();
+</script>
+</body>
+</html>
