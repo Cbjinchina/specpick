@@ -145,7 +145,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 22:58</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 23:15（支持 Ctrl+V 粘贴截图）</p>
 </header>
 
 <div id="guide" class="guide">
@@ -169,8 +169,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     <ul class="plain">
       <li><strong>在哪里填我要对比的物品？</strong>往下找到「4 正在看的几个候选」，一个白框 = 一件商品，点「+ 添加一个候选」加更多。</li>
       <li><strong>能对比电脑吗？</strong>能。最上面的下拉框里就有「笔记本电脑 · 通勤办公」这个现成案例。</li>
-      <li><strong>能丢张截图让 AI 自动对比吗？</strong>网页版不识图、不联网。只有本地测试台支持图片辅助录入，而且模型只负责读出参数，数字要你核对，打分和结论仍由纯规则算。</li>
-      <li><strong>填的东西会上传吗？</strong>不会，只存在这台设备的浏览器里，刷新自动恢复。</li>
+      <li><strong>能丢张截图让 AI 自动对比吗？</strong>能识别，但只识别「名称 + 参数 + 价格」：点「拍照 / 从相册选图」，或在电脑上直接 <b>Ctrl+V</b> 粘贴截图。模型不打分、不排序、不推荐，数字仍要你核对，结论由纯规则算。</li>
+      <li><strong>填的东西会上传吗？</strong>你手填的表单只存在这台设备的浏览器里，刷新自动恢复，不上传。只有你主动选的那张截图会发给看图模型识别，不保存、不建商品库。</li>
       <li><strong>换手机怎么办？</strong>点「导出备份」存一个 .json，新设备点「导入备份」。</li>
       <li><strong>手机上报告在哪？</strong>在表单下方，往下划就能看到。</li>
     </ul>
@@ -203,7 +203,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
         <button type="button" class="primary" id="btnVisionPick">拍照 / 从相册选图</button>
         <input type="file" id="visionFile" accept="image/*" class="filegrab" aria-label="拍照或从相册选图">
       </div>
-      <div class="tip" style="margin:8px 0 10px">点了会弹出「拍照 / 从相册选择」。选完大约 10–15 秒出结果。</div>
+      <div class="tip" style="margin:8px 0 10px">点了会弹出「拍照 / 从相册选择」。选完大约 10–15 秒出结果。<br>
+        <b>电脑上</b>：截图后直接按 <b>Ctrl+V</b>（Mac 是 ⌘V）粘在本页面任意位置，一样会开始识图。</div>
       <div class="toolbar">
         <button class="mini" id="btnVisionDemo">用示例截图试一下</button>
       </div>
@@ -214,9 +215,10 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       <h2><span class="n">＋</span> 有截图？粘文字，自动填表</h2>
       <div class="tip">
         <b>手机上</b>：相册打开截图 → 长按文字「提取文字」（微信用「长按图片 → 提取文字」）→ 全选复制 → 粘到下面。<br>
+        <b>电脑上</b>：复制截图里的文字后按 <b>Ctrl+V</b>（⌘V）粘进来就行，会自动开始识别。<br>
         不用手打，名称和价格我来配对；认不出的会留空，让你核对，而不是瞎猜。
       </div>
-      <textarea id="pasteText" rows="4" style="min-height:104px" placeholder="把从截图里复制出来的文字整段粘进来，例如：&#10;七彩虹 5060 Ultra W OC 8G&#10;¥4799"></textarea>
+      <textarea id="pasteText" rows="4" style="min-height:104px" placeholder="把从截图里复制出来的文字整段粘进来（Ctrl+V），例如：&#10;七彩虹 5060 Ultra W OC 8G&#10;¥4799"></textarea>
       <div class="toolbar">
         <button class="mini" id="btnPasteGo">识别并填入</button>
         <button class="mini" id="btnPasteClear">清空</button>
@@ -276,8 +278,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 
 <footer>
   specpick 网页版 · 与命令行版是同一套算法的两个实现，结果可交叉校验。
-  不上传任何数据、不用 API Key、不抓商品；关掉网页数据仍留在本机浏览器里。
-  换设备时用「导出备份 / 导入备份」搬走。
+  手填的数据只留在本机浏览器、不上传；只有你主动选的那张截图会发给看图模型做识别，不保存。
+  不用 API Key、不抓商品；换设备时用「导出备份 / 导入备份」搬走。
   <div style="margin-top:8px"><button class="mini" id="btnGuideOpen">显示 3 步新手引导</button></div>
 </footer>
 
@@ -1123,6 +1125,89 @@ $('#btnPasteGo').onclick = function(){
   toast('已识别 ' + state.items.length + ' 件');
   if(window.innerWidth < 920) $('#pasteCard').scrollIntoView({behavior:'smooth', block:'start'});
 };
+
+/* ---------- 粘贴：图片→识图，文字→自动识别填表 ----------
+ * 之前的实现只认「点按钮」，用户截图后按 Ctrl+V 完全没反应。
+ * 这里统一在文档层接管粘贴：剪贴板里是图片就走识图，是文字就塞进粘贴框并自动解析。
+ */
+function pasteCardFlash(msg){
+  var card = $('#pasteCard');
+  if(!card) return;
+  if(msg){ $('#pasteNote').textContent = msg; }
+  card.classList.remove('flash');
+  void card.offsetWidth;
+  card.classList.add('flash');
+  if(window.innerWidth < 920) card.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function clipboardImage(cd){
+  if(!cd) return null;
+  var files = cd.files ? Array.prototype.slice.call(cd.files) : [];
+  for(var i = 0; i < files.length; i++){
+    if(/^image\//i.test(files[i].type || '')) return files[i];
+  }
+  var items = cd.items ? Array.prototype.slice.call(cd.items) : [];
+  for(var j = 0; j < items.length; j++){
+    var it = items[j];
+    if(it.kind === 'file' && /^image\//i.test(it.type || '')){
+      var f = it.getAsFile && it.getAsFile();
+      if(f) return f;
+    }
+  }
+  return null;
+}
+
+document.addEventListener('paste', function(e){
+  var cd = e.clipboardData || window.clipboardData;
+  if(!cd) return;
+
+  var img = clipboardImage(cd);
+  if(img){
+    e.preventDefault();
+    if(!ON_APP_ORIGIN){
+      pasteCardFlash('这个地址不支持识图（GitHub Pages 是纯静态版）。请用带分享码的官方地址打开，或把图里的文字复制出来粘到这里。');
+      return;
+    }
+    if(img.size > 12 * 1024 * 1024){
+      vNote('粘贴的截图太大了（超过 12MB）。先裁掉无关部分，或改用「粘文字」。');
+      $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+      return;
+    }
+    if(!cloudReady()){
+      loadSdk();
+      vNote('识图服务还在连接中。等两秒再粘一次；或把图里的文字复制出来粘到下面的粘贴框。');
+      $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+      return;
+    }
+    if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+    var url = URL.createObjectURL(img);
+    runVision(imgToDataUrl(url, 2000).then(function(d){ URL.revokeObjectURL(url); return d; }));
+    return;
+  }
+
+  var text = '';
+  try { text = cd.getData('text/plain') || ''; } catch(err) { text = ''; }
+  if(!text.trim()) return;
+
+  var t = e.target;
+  var typing = t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable);
+  if(typing){
+    // 粘在粘贴框里：让浏览器原生插入，稍后自动点「识别并填入」
+    if(t.id === 'pasteText'){
+      setTimeout(function(){
+        if($('#pasteText').value.trim()) $('#btnPasteGo').click();
+      }, 120);
+    }
+    return;
+  }
+
+  // 焦点不在输入框：直接接住，塞进粘贴框并自动识别
+  e.preventDefault();
+  var box = $('#pasteText');
+  box.value = (box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' : '') + text;
+  pasteCardFlash('已粘住 ' + text.trim().split(/\n+/).length + ' 行文字，正在识别……');
+  setTimeout(function(){ $('#btnPasteGo').click(); }, 60);
+});
 
 $('#btnRun').onclick = function(){ run(); };
 $('#btnToml').onclick = function(){ sync(); var t=toToml(); $('#tomlNeeds').value=t.needs;
