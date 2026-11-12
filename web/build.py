@@ -14,19 +14,21 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 INDEX = HERE / "index.html"
-ENGINE = HERE / "engine.js"
+SCRIPTS = [("paste.js", HERE / "paste.js"), ("engine.js", HERE / "engine.js")]
 OUTPUT = HERE / "specpick.html"
-TAG = '<script src="engine.js"></script>'
 
 
 def build() -> str:
     html = INDEX.read_text(encoding="utf-8")
-    js = ENGINE.read_text(encoding="utf-8")
-    if TAG not in html:
-        raise RuntimeError("index.html 里找不到 engine.js 的引用标记")
-    # 避免 JS 里出现 </script> 时提前闭合标签
-    inline = "<script>\n" + js.replace("</script>", "<\\/script>") + "\n</script>"
-    return html.replace(TAG, inline, 1)
+    for name, path in SCRIPTS:
+        tag = f'<script src="{name}"></script>'
+        if tag not in html:
+            raise RuntimeError(f"index.html 里找不到 {name} 的引用标记")
+        js = path.read_text(encoding="utf-8")
+        # 避免 JS 里出现 </script> 时提前闭合标签
+        inline = "<script>\n" + js.replace("</script>", "<\\/script>") + "\n</script>"
+        html = html.replace(tag, inline, 1)
+    return html
 
 
 def main() -> int:

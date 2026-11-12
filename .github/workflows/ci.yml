@@ -31,5 +31,8 @@ jobs:
       - name: 网页版与命令行引擎结果一致
         run: python web/verify.py
 
+      - name: 截图文字解析（手机端自动填表）
+        run: node web/paste_test.js
+
       - name: 单文件离线版与源码一致
         run: python web/build.py --check
