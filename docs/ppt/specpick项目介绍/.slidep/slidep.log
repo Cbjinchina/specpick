@@ -1,0 +1,24 @@
+=== boot pid=28332 ts=2026-11-12 11:17:10.193 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/01.slide ===
+[2026-11-12 11:17:10.192] [INFO ] [pid=28332] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:17:10.225] [INFO ] [pid=28332] [slide-version] fileId=sid_mwcz version=0 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=18608 ts=2026-11-12 11:17:35.627 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/02.slide ===
+[2026-11-12 11:17:35.627] [INFO ] [pid=18608] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:17:35.657] [INFO ] [pid=18608] [slide-version] fileId=sid_mwcz version=1 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=8428 ts=2026-11-12 11:17:52.303 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/03.slide ===
+[2026-11-12 11:17:52.302] [INFO ] [pid=8428] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:17:52.333] [INFO ] [pid=8428] [slide-version] fileId=sid_mwcz version=2 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=30044 ts=2026-11-12 11:18:34.129 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/04.slide ===
+[2026-11-12 11:18:34.129] [INFO ] [pid=30044] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:18:34.160] [INFO ] [pid=30044] [slide-version] fileId=sid_mwcz version=3 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=6352 ts=2026-11-12 11:19:31.111 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/05.slide ===
+[2026-11-12 11:19:31.110] [INFO ] [pid=6352] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:19:31.142] [INFO ] [pid=6352] [slide-version] fileId=sid_mwcz version=4 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=30664 ts=2026-11-12 11:19:53.887 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/06.slide ===
+[2026-11-12 11:19:53.886] [INFO ] [pid=30664] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:19:53.926] [INFO ] [pid=30664] [slide-version] fileId=sid_mwcz version=5 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=11088 ts=2026-11-12 11:20:13.156 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/07.slide ===
+[2026-11-12 11:20:13.156] [INFO ] [pid=11088] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:20:13.207] [INFO ] [pid=11088] [slide-version] fileId=sid_mwcz version=6 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx
+=== boot pid=31156 ts=2026-11-12 11:20:27.273 cwd=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍 argv=C:\Users\chengbojun\.workbuddy\binaries\node\versions\22.22.2-6\node_modules\@tencent\slidep\dist\index.js upsert-dsl specpick项目介绍.pptx --dsl-file slides/08.slide ===
+[2026-11-12 11:20:27.273] [INFO ] [pid=31156] [server-url] baseUrl=http://127.0.0.1:39099 source=env
+[2026-11-12 11:20:27.304] [INFO ] [pid=31156] [slide-version] fileId=sid_mwcz version=7 filePath=C:\Users\chengbojun\WorkBuddy\2026-11-10-19-57-51\specpick\docs\ppt\specpick项目介绍\specpick项目介绍.pptx

@@ -1,0 +1,68 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 10, height: 10, borderRadius: 5, background: '#176B4D' }} />
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.2 }}>六个候选，一个赢</Text>
+  </Box>
+  <Box style={{ height: 1, background: '#DFE3DB', marginTop: 16 }} />
+
+  <Box style={{ flexDirection: 'row', gap: 40, marginTop: 40, alignItems: 'center' }}>
+    <Box style={{ width: 560, gap: 10 }}>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#6C736A', width: 210, lineHeight: 1.4 }}>5060Ti 16G Ultra W</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 250, height: 12, background: '#A0471C', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#A0471C', width: 80, textAlign: 'right', lineHeight: 1.4 }}>7299</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#1B1E1A', width: 210, lineHeight: 1.4 }}>技嘉 RTX 5060 Ti 16G</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 168, height: 12, background: '#176B4D', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#176B4D', width: 80, textAlign: 'right', lineHeight: 1.4 }}>4899</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#1B1E1A', width: 210, lineHeight: 1.4 }}>5060 Ultra W 8G</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 164, height: 12, background: '#86D3AC', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1B1E1A', width: 80, textAlign: 'right', lineHeight: 1.4 }}>4799</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#1B1E1A', width: 210, lineHeight: 1.4 }}>5060 战斧 8GB</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 158, height: 12, background: '#86D3AC', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1B1E1A', width: 80, textAlign: 'right', lineHeight: 1.4 }}>4599</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#1B1E1A', width: 210, lineHeight: 1.4 }}>电竞叛客 5060 X2W 8GB</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 144, height: 12, background: '#86D3AC', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1B1E1A', width: 80, textAlign: 'right', lineHeight: 1.4 }}>4199</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 20 }}>
+        <Text style={{ fontSize: 15, color: '#1B1E1A', width: 210, lineHeight: 1.4 }}>万丽 5060 OC 8GB</Text>
+        <Box style={{ width: 250, height: 12, background: '#EDEFEA', borderRadius: 6 }}>
+          <Box style={{ width: 137, height: 12, background: '#86D3AC', borderRadius: 6 }} />
+        </Box>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1B1E1A', width: 80, textAlign: 'right', lineHeight: 1.4 }}>3999</Text>
+      </Box>
+      <Text style={{ fontSize: 14, color: '#6C736A', lineHeight: 1.5, marginTop: 8 }}>条形长度 = 列表标价；橙色为超预算被淘汰</Text>
+    </Box>
+
+    <Box style={{ width: 560, background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, padding: 26, gap: 16 }}>
+      <Text style={{ fontSize: 14, color: '#176B4D', fontWeight: 'bold', lineHeight: 1.4 }}>胜出</Text>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.35 }}>技嘉 GIGABYTE RTX 5060 Ti 16G</Text>
+      <Box style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
+        <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#176B4D', lineHeight: 1 }}>6.00</Text>
+        <Text style={{ fontSize: 18, color: '#6C736A', lineHeight: 1.3, marginBottom: 4 }}>分 · ¥4899</Text>
+      </Box>
+      <Box style={{ height: 1, background: '#DFE3DB' }} />
+      <Text style={{ fontSize: 18, color: '#1B1E1A', lineHeight: 1.55 }}><span style={{ fontWeight: 'bold', color: '#A0471C' }}>淘汰 1 个</span>：¥7299 那款超预算 ¥2299</Text>
+      <Text style={{ fontSize: 18, color: '#1B1E1A', lineHeight: 1.55 }}><span style={{ fontWeight: 'bold', color: '#176B4D' }}>反事实</span>：第二名 ¥3999，型号升一档即反超</Text>
+      <Text style={{ fontSize: 15, color: '#6C736A', lineHeight: 1.5 }}>权重上下拨 25%、试 8 次，结论仍然稳健</Text>
+    </Box>
+  </Box>
+</Slide>

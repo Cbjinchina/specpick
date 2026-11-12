@@ -1,0 +1,41 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 10, height: 10, borderRadius: 5, background: '#176B4D' }} />
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.2 }}>三步，三十秒</Text>
+  </Box>
+  <Box style={{ height: 1, background: '#DFE3DB', marginTop: 16 }} />
+
+  <Text style={{ fontSize: 19, color: '#6C736A', lineHeight: 1.5, marginTop: 34 }}>从打开到出结果，一共三步</Text>
+
+  <Box style={{ flexDirection: 'row', alignItems: 'stretch', marginTop: 20 }}>
+    <Box style={{ width: 380, background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, padding: 22, gap: 14 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.4 }}>01</Text>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.35 }}>选一个例子</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', lineHeight: 1.55 }}>打开就有一个填好的案例：厨房沥水架、笔记本、显卡。照着改，不用从空白开始。</Text>
+    </Box>
+
+    <Box style={{ width: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 24, color: '#86D3AC', lineHeight: 1.4 }}>→</Text>
+    </Box>
+
+    <Box style={{ width: 346, background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, padding: 22, gap: 14 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.4 }}>02</Text>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.35 }}>改成你的候选</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', lineHeight: 1.55 }}>一个白框就是一件商品：填名字、价格，再填你在意的几个数字。三到八个就够。</Text>
+    </Box>
+
+    <Box style={{ width: 44, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ fontSize: 24, color: '#86D3AC', lineHeight: 1.4 }}>→</Text>
+    </Box>
+
+    <Box style={{ width: 346, background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, padding: 22, gap: 14 }}>
+      <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.4 }}>03</Text>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.35 }}>点生成，看结果</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', lineHeight: 1.55 }}>谁赢、谁被淘汰、要改哪个数字才能反超，右边一次说清，还能复制成文字。</Text>
+    </Box>
+  </Box>
+
+  <Box style={{ background: '#E7F3EC', borderRadius: 12, padding: '18px 24px', marginTop: 'auto' }}>
+    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#176B4D', lineHeight: 1.4 }}>手机、电脑同一个页面：不用装、不用注册、不联网，数据只在本机</Text>
+  </Box>
+</Slide>

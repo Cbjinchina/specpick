@@ -1,0 +1,17 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', flex: 1, alignItems: 'center', gap: 56 }}>
+    <Box style={{ flex: 1, gap: 26 }}>
+      <Text style={{ fontSize: 40, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.45 }}>推荐系统告诉你买什么。<br />这个工具告诉你，<br /><span style={{ color: '#176B4D' }}>当初的你是按什么标准想的。</span></Text>
+      <Box style={{ width: 92, height: 4, background: '#86D3AC', borderRadius: 2 }} />
+      <Text style={{ fontSize: 16, color: '#6C736A', lineHeight: 1.5 }}>specpick · 课堂演示 · 2026 年 11 月</Text>
+    </Box>
+
+    <Box style={{ width: 300, alignItems: 'center', gap: 16 }}>
+      <Box style={{ background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, padding: 16 }}>
+        <QRCode text='https://cbjinchina.github.io/specpick/' width={200} darkColor='#176B4D' lightColor='#FFFFFF' errorCorrectionLevel='M' />
+      </Box>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#176B4D', lineHeight: 1.4 }}>手机扫码，现在就能试</Text>
+      <Text style={{ fontSize: 14, color: '#6C736A', lineHeight: 1.4 }}>cbjinchina.github.io/specpick</Text>
+    </Box>
+  </Box>
+</Slide>

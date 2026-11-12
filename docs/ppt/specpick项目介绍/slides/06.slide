@@ -1,0 +1,43 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 10, height: 10, borderRadius: 5, background: '#176B4D' }} />
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.2 }}>它不是推荐系统</Text>
+  </Box>
+  <Box style={{ height: 1, background: '#DFE3DB', marginTop: 16 }} />
+
+  <Box style={{ marginTop: 36, background: '#FFFFFF', border: '1px solid #DFE3DB', borderRadius: 12, overflow: 'hidden' }}>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', height: 52, background: '#E7F3EC', paddingLeft: 24, paddingRight: 24 }}>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#6C736A', width: 200, lineHeight: 1.4 }}>对比</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#6C736A', width: 420, lineHeight: 1.4 }}>推荐系统</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#176B4D', width: 480, lineHeight: 1.4 }}>specpick</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', alignItems: 'center', height: 64, borderBottom: '1px solid #EDEFEA', paddingLeft: 24, paddingRight: 24 }}>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 200, lineHeight: 1.5 }}>谁在打分</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 420, lineHeight: 1.5 }}>模型在猜</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1B1E1A', width: 480, lineHeight: 1.5 }}>规则在算</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', alignItems: 'center', height: 64, borderBottom: '1px solid #EDEFEA', paddingLeft: 24, paddingRight: 24 }}>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 200, lineHeight: 1.5 }}>告诉你什么</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 420, lineHeight: 1.5 }}>「推荐这个」</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1B1E1A', width: 480, lineHeight: 1.5 }}>「另外五个为什么不行」</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', alignItems: 'center', height: 64, borderBottom: '1px solid #EDEFEA', paddingLeft: 24, paddingRight: 24 }}>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 200, lineHeight: 1.5 }}>同一个问题问两次</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 420, lineHeight: 1.5 }}>答案可能不一样</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1B1E1A', width: 480, lineHeight: 1.5 }}>永远一模一样</Text>
+    </Box>
+
+    <Box style={{ flexDirection: 'row', alignItems: 'center', height: 64, paddingLeft: 24, paddingRight: 24 }}>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 200, lineHeight: 1.5 }}>数据从哪来</Text>
+      <Text style={{ fontSize: 18, color: '#6C736A', width: 420, lineHeight: 1.5 }}>抓平台数据、实时价格</Text>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1B1E1A', width: 480, lineHeight: 1.5 }}>你自己录入，并标注来源</Text>
+    </Box>
+  </Box>
+
+  <Box style={{ background: '#E7F3EC', borderRadius: 12, padding: '18px 24px', marginTop: 'auto' }}>
+    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#176B4D', lineHeight: 1.4 }}>AI 只负责抄参数，不负责判断 —— 打分和结论都由规则算</Text>
+  </Box>
+</Slide>

@@ -1,0 +1,32 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 10, height: 10, borderRadius: 5, background: '#176B4D' }} />
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.2 }}>我看了四十分钟，最后凭感觉</Text>
+  </Box>
+  <Box style={{ height: 1, background: '#DFE3DB', marginTop: 16 }} />
+
+  <Box style={{ flexDirection: 'row', gap: 56, flex: 1, alignItems: 'center' }}>
+    <Box style={{ width: 340, flexDirection: 'row', alignItems: 'flex-end', gap: 10 }}>
+      <Text style={{ fontSize: 96, fontWeight: 'bold', color: '#176B4D', lineHeight: 1 }}>40</Text>
+      <Text style={{ fontSize: 24, color: '#6C736A', lineHeight: 1.2, marginBottom: 12 }}>分钟</Text>
+    </Box>
+    <Box style={{ flex: 1, gap: 24 }}>
+      <Box style={{ flexDirection: 'row', gap: 16 }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.5 }}>01</Text>
+        <Text style={{ fontSize: 19, color: '#1B1E1A', lineHeight: 1.5 }}>一页搜索结果里，混着显卡、游戏本、台式整机</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 16 }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.5 }}>02</Text>
+        <Text style={{ fontSize: 19, color: '#1B1E1A', lineHeight: 1.5 }}>广告图写券后 6699，点进去列表价 7299</Text>
+      </Box>
+      <Box style={{ flexDirection: 'row', gap: 16 }}>
+        <Text style={{ fontSize: 19, fontWeight: 'bold', color: '#86D3AC', lineHeight: 1.5 }}>03</Text>
+        <Text style={{ fontSize: 19, color: '#1B1E1A', lineHeight: 1.5 }}>参数各不相同，没有一个能直接比</Text>
+      </Box>
+    </Box>
+  </Box>
+
+  <Box style={{ background: '#E7F3EC', borderRadius: 12, padding: '18px 24px', marginTop: 24 }}>
+    <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#176B4D', lineHeight: 1.4 }}>最后凭感觉点了一个 —— 说不出为什么，也说不出另外几个差在哪</Text>
+  </Box>
+</Slide>

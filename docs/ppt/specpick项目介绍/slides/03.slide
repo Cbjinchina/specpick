@@ -1,0 +1,26 @@
+<Slide style={{ width: 1280, height: 720, background: '#F5F6F3', padding: 60 }}>
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <Box style={{ width: 10, height: 10, borderRadius: 5, background: '#176B4D' }} />
+    <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.2 }}>它只回答三个问题</Text>
+  </Box>
+  <Box style={{ height: 1, background: '#DFE3DB', marginTop: 16 }} />
+
+  <Box style={{ flex: 1, justifyContent: 'center', gap: 34 }}>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#86D3AC', width: 44, lineHeight: 1.4 }}>01</Text>
+      <Text style={{ fontSize: 42, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.4 }}>谁该赢？</Text>
+    </Box>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#86D3AC', width: 44, lineHeight: 1.4 }}>02</Text>
+      <Text style={{ fontSize: 42, fontWeight: 'bold', color: '#1B1E1A', lineHeight: 1.4 }}>另一个为什么输了？</Text>
+    </Box>
+    <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+      <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#86D3AC', width: 44, lineHeight: 1.4 }}>03</Text>
+      <Text style={{ fontSize: 42, fontWeight: 'bold', color: '#176B4D', lineHeight: 1.4 }}>要改哪个条件，它才会赢？</Text>
+    </Box>
+  </Box>
+
+  <Box style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 20, borderTop: '1px solid #DFE3DB' }}>
+    <Text style={{ fontSize: 19, color: '#6C736A', lineHeight: 1.5 }}>注意，是「你写下的标准」，不是它猜的</Text>
+  </Box>
+</Slide>
