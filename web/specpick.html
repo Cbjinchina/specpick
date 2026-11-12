@@ -145,6 +145,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 22:58</p>
 </header>
 
 <div id="guide" class="guide">
@@ -1183,13 +1184,14 @@ function sync(){
   });
   save();
 }
-function run(){
+function run(silent){
   sync();
   var c = buildCase();
   var res = Specpick.decide(c.needs, c.items, state.caseId);
   renderReport(res);
   var t = toToml();
   $('#tomlNeeds').value = t.needs; $('#tomlItems').value = t.items;
+  if(!silent) toast('报告已生成');
   if(window.innerWidth < 920) $('#reportCard').scrollIntoView({behavior:'smooth',block:'start'});
 }
 function nextKey(){
@@ -1206,7 +1208,7 @@ function setCase(id){
   state = normalize(JSON.parse(JSON.stringify(id==='blank' ? blank() : CASES[id].data)));
   $('#caseSel').value = id;
   $('#caseDesc').textContent = id==='blank' ? '从最简单的两件商品开始，随便改' : CASES[id].desc;
-  renderForm(); save(); run();
+  renderForm(); save(); run(true);
 }
 
 $('#caseSel').addEventListener('change', function(){ setCase(this.value); });
@@ -1233,7 +1235,7 @@ $('#fileInput').addEventListener('change', function(){
       state = normalize(d);
       $('#caseSel').value = '';
       $('#caseDesc').textContent = '已导入本机备份';
-      renderForm(); save(); run();
+      renderForm(); save(); run(true);
       toast('备份已载入');
     }catch(e){ toast('导入失败：'+e.message); }
   };
@@ -1416,7 +1418,7 @@ function applyVision(payload){
     return o;
   });
 
-  renderForm(); save(); run();
+  renderForm(); save(); run(true);
 
   var blanks = 0;
   state.items.forEach(function(it){
@@ -1429,7 +1431,7 @@ function applyVision(payload){
   $('#visionNote').innerHTML = msg + '。 <button class="mini" id="btnUndoVision">撤销</button>';
   $('#btnUndoVision').onclick = function(){
     state.items = JSON.parse(backup);
-    renderForm(); save(); run();
+    renderForm(); save(); run(true);
     vNote('已撤销，回到识别前的候选。');
   };
   if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
@@ -1555,7 +1557,7 @@ $('#btnPasteGo').onclick = function(){
     return o;
   });
 
-  renderForm(); save(); run();
+  renderForm(); save(); run(true);
 
   var blanks = 0;
   state.items.forEach(function(it){
@@ -1567,14 +1569,14 @@ $('#btnPasteGo').onclick = function(){
   note.innerHTML = msg + '。 <button class="mini" id="btnUndoPaste">撤销</button>';
   $('#btnUndoPaste').onclick = function(){
     state.items = JSON.parse(backup);
-    renderForm(); save(); run();
+    renderForm(); save(); run(true);
     note.textContent = '已撤销，回到识别前的候选。';
   };
   toast('已识别 ' + state.items.length + ' 件');
   if(window.innerWidth < 920) $('#pasteCard').scrollIntoView({behavior:'smooth', block:'start'});
 };
 
-$('#btnRun').onclick = run;
+$('#btnRun').onclick = function(){ run(); };
 $('#btnToml').onclick = function(){ sync(); var t=toToml(); $('#tomlNeeds').value=t.needs;
   $('#tomlItems').value=t.items; $('#tomlBox').classList.toggle('hidden'); };
 $('#btnCopyNeeds').onclick = function(){ copy($('#tomlNeeds').value); };
@@ -1692,7 +1694,7 @@ window.addEventListener('resize', function(){ if(coachIdx >= 0) coachSync(); });
     var known = CASES[state.caseId];
     $('#caseSel').value = known ? state.caseId : 'blank';
     $('#caseDesc').textContent = known ? known.desc : '上次在本机编辑的内容已自动恢复';
-    renderForm(); run();
+    renderForm(); run(true);
   }else{
     setCase('kitchen');
   }
