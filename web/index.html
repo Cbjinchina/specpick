@@ -145,7 +145,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 23:15（支持 Ctrl+V 粘贴截图）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 23:25（粘图直接读 / 拖图也行）</p>
 </header>
 
 <div id="guide" class="guide">
@@ -194,29 +194,28 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     </div>
 
     <div class="card" id="visionCard" style="display:none">
-      <h2><span class="n">📷</span> 拍张截图，自动填表</h2>
+      <h2><span class="n">📷</span> 有截图？直接粘进来，我来读</h2>
       <div class="tip">
-        由云端多模态模型读图，<b>你不用申请任何 Key</b>。只读名称和参数，<b>不打分、不排序、不推荐</b>。<br>
-        图片只用于这次识别，不会被存成商品库。
+        <b>电脑</b>：截图后按 <b>Ctrl+V</b>（Mac ⌘V）粘在本页面任意位置，或把图片拖进来。<br>
+        <b>手机</b>：点下面的按钮，拍照或从相册选一张。<br>
+        读完自动填表，<b>你不用申请任何 Key</b>。只读名称和参数，<b>不打分、不排序、不推荐</b>；图片只用于这次识别，不会被存成商品库。
       </div>
       <div class="pickwrap">
         <button type="button" class="primary" id="btnVisionPick">拍照 / 从相册选图</button>
         <input type="file" id="visionFile" accept="image/*" class="filegrab" aria-label="拍照或从相册选图">
       </div>
-      <div class="tip" style="margin:8px 0 10px">点了会弹出「拍照 / 从相册选择」。选完大约 10–15 秒出结果。<br>
-        <b>电脑上</b>：截图后直接按 <b>Ctrl+V</b>（Mac 是 ⌘V）粘在本页面任意位置，一样会开始识图。</div>
+      <div class="tip" style="margin:8px 0 10px">选完大约 10–15 秒出结果，能一次读出整屏商品。</div>
       <div class="toolbar">
-        <button class="mini" id="btnVisionDemo">用示例截图试一下</button>
+        <button class="mini" id="btnVisionDemo">没有截图？用示例图试一下</button>
       </div>
       <div class="tip" id="visionNote" style="margin:10px 0 0"></div>
     </div>
 
     <div class="card" id="pasteCard">
-      <h2><span class="n">＋</span> 有截图？粘文字，自动填表</h2>
+      <h2><span class="n">＋</span> 只有文字？粘文字也能填（备用）</h2>
       <div class="tip">
-        <b>手机上</b>：相册打开截图 → 长按文字「提取文字」（微信用「长按图片 → 提取文字」）→ 全选复制 → 粘到下面。<br>
-        <b>电脑上</b>：复制截图里的文字后按 <b>Ctrl+V</b>（⌘V）粘进来就行，会自动开始识别。<br>
-        不用手打，名称和价格我来配对；认不出的会留空，让你核对，而不是瞎猜。
+        手机相册打开截图 → 长按「提取文字」→ 全选复制 → 粘到下面，<b>一粘就自动填</b>。<br>
+        这条路<b>不需要联网</b>，识图连不上时用它；名称和价格我来配对，认不出的留空让你核对，不瞎猜。
       </div>
       <textarea id="pasteText" rows="4" style="min-height:104px" placeholder="把从截图里复制出来的文字整段粘进来（Ctrl+V），例如：&#10;七彩虹 5060 Ultra W OC 8G&#10;¥4799"></textarea>
       <div class="toolbar">
@@ -1157,6 +1156,31 @@ function clipboardImage(cd){
   return null;
 }
 
+/* 收到一张图（粘贴或拖拽都走这里）：能读就送去读，不能读就说清原因 */
+function intakeImage(img){
+  if(!ON_APP_ORIGIN){
+    var why = location.protocol === 'file:'
+      ? '这个离线单文件没有识图能力'
+      : '这个地址（GitHub Pages 静态版）没有识图能力';
+    pasteCardFlash(why + '。用带分享码的官方地址打开就能直接粘图，或把图里的文字复制出来粘到这里。');
+    return;
+  }
+  if(img.size > 12 * 1024 * 1024){
+    vNote('这张图太大了（超过 12MB）。先裁掉无关部分，或改用「粘文字」。');
+    $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  if(!cloudReady()){
+    loadSdk();
+    vNote('识图服务还在连接中。等两秒再试一次；或把图里的文字复制出来粘到下面的粘贴框。');
+    $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+  var url = URL.createObjectURL(img);
+  runVision(imgToDataUrl(url, 2000).then(function(d){ URL.revokeObjectURL(url); return d; }));
+}
+
 document.addEventListener('paste', function(e){
   var cd = e.clipboardData || window.clipboardData;
   if(!cd) return;
@@ -1164,24 +1188,7 @@ document.addEventListener('paste', function(e){
   var img = clipboardImage(cd);
   if(img){
     e.preventDefault();
-    if(!ON_APP_ORIGIN){
-      pasteCardFlash('这个地址不支持识图（GitHub Pages 是纯静态版）。请用带分享码的官方地址打开，或把图里的文字复制出来粘到这里。');
-      return;
-    }
-    if(img.size > 12 * 1024 * 1024){
-      vNote('粘贴的截图太大了（超过 12MB）。先裁掉无关部分，或改用「粘文字」。');
-      $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
-      return;
-    }
-    if(!cloudReady()){
-      loadSdk();
-      vNote('识图服务还在连接中。等两秒再粘一次；或把图里的文字复制出来粘到下面的粘贴框。');
-      $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
-      return;
-    }
-    if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
-    var url = URL.createObjectURL(img);
-    runVision(imgToDataUrl(url, 2000).then(function(d){ URL.revokeObjectURL(url); return d; }));
+    intakeImage(img);
     return;
   }
 
@@ -1207,6 +1214,24 @@ document.addEventListener('paste', function(e){
   box.value = (box.value.trim() ? box.value.replace(/\s+$/, '') + '\n' : '') + text;
   pasteCardFlash('已粘住 ' + text.trim().split(/\n+/).length + ' 行文字，正在识别……');
   setTimeout(function(){ $('#btnPasteGo').click(); }, 60);
+});
+
+/* ---------- 拖拽：把截图直接拖到页面上，也能读 ---------- */
+function droppedImage(dt){
+  if(!dt || !dt.files) return null;
+  for(var i = 0; i < dt.files.length; i++){
+    if(/^image\//i.test(dt.files[i].type || '')) return dt.files[i];
+  }
+  return null;
+}
+document.addEventListener('dragover', function(e){
+  if(droppedImage(e.dataTransfer)) e.preventDefault();
+});
+document.addEventListener('drop', function(e){
+  var f = droppedImage(e.dataTransfer);
+  if(!f) return;
+  e.preventDefault();
+  intakeImage(f);
 });
 
 $('#btnRun').onclick = function(){ run(); };
