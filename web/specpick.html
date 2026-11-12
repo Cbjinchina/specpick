@@ -85,6 +85,13 @@ select.pick{max-width:100%;font-size:15px}
 .hrow{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:8px}
 .hrow .full{grid-column:1 / -1}
 .hidden{display:none}
+/* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
+.pickwrap{position:relative;display:block}
+.pickwrap.inline{display:inline-block;vertical-align:middle}
+.pickwrap .primary{margin:0}
+input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z-index:3;
+  border:0;padding:0;margin:0;min-height:0;background:transparent;cursor:pointer;
+  -webkit-appearance:none;appearance:none;font-size:16px}
 .guide{max-width:1080px;margin:0 auto 14px;padding:16px 18px;background:var(--accent-bg);
   border:1px solid var(--accent);border-radius:14px}
 .guide-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
@@ -178,8 +185,10 @@ select.pick{max-width:100%;font-size:15px}
       <div class="toolbar">
         <button class="mini" id="btnBlank">空白新对比</button>
         <button class="mini" id="btnExport">导出备份</button>
-        <button class="mini" id="btnImport">导入备份</button>
-        <input type="file" id="fileInput" accept=".json,application/json" class="hidden">
+        <span class="pickwrap inline">
+          <button class="mini" id="btnImport">导入备份</button>
+          <input type="file" id="fileInput" accept=".json,application/json" class="filegrab" aria-label="导入备份文件">
+        </span>
       </div>
     </div>
 
@@ -189,8 +198,11 @@ select.pick{max-width:100%;font-size:15px}
         由云端多模态模型读图，<b>你不用申请任何 Key</b>。只读名称和参数，<b>不打分、不排序、不推荐</b>。<br>
         图片只用于这次识别，不会被存成商品库。
       </div>
-      <input type="file" id="visionFile" accept="image/*" class="hidden">
-      <button class="primary" id="btnVisionPick" style="margin-bottom:10px">拍照 / 从相册选图</button>
+      <div class="pickwrap">
+        <button type="button" class="primary" id="btnVisionPick">拍照 / 从相册选图</button>
+        <input type="file" id="visionFile" accept="image/*" class="filegrab" aria-label="拍照或从相册选图">
+      </div>
+      <div class="tip" style="margin:8px 0 10px">点了会弹出「拍照 / 从相册选择」。选完大约 10–15 秒出结果。</div>
       <div class="toolbar">
         <button class="mini" id="btnVisionDemo">用示例截图试一下</button>
       </div>
@@ -1322,6 +1334,7 @@ function visionErrText(e){
   if(code.indexOf('quota_') === 0) return '识别额度用完了，稍后再试，或先用下面的「粘文字」。';
   if(code.indexOf('gateway_') === 0 || code.indexOf('model_') === 0) return '模型服务暂时不可用，稍后再试。';
   if(e && e.message === 'NO_SDK') return '识别服务没加载成功（可能断网了），可以改用下面的「粘文字」。';
+  if(e && e.message === '图片读不出来') return '这张图打不开（可能是 HEIC 或已损坏）。换一张 JPG/PNG 截图，或改用下面的「粘文字」。';
   return '识别失败：' + ((e && e.message) || '未知错误');
 }
 
@@ -1427,7 +1440,10 @@ async function runVision(source){
   if(visionBusy) return;
   if(Date.now() - lastVisionAt < 4000){ vNote('刚识别过，等两秒再试。'); return; }
   visionBusy = true; lastVisionAt = Date.now();
-  $('#btnVisionPick').disabled = true; $('#btnVisionDemo').disabled = true;
+  var pickBtn = $('#btnVisionPick'), pickLabel = pickBtn.textContent;
+  pickBtn.textContent = '正在读图，请稍等……';
+  $('#visionFile').disabled = true;
+  $('#btnVisionDemo').disabled = true;
   vNote('正在读图……（一般 10–15 秒）');
   try {
     var dataUrl = (typeof source === 'string') ? await imgToDataUrl(source, 2000) : await source;
@@ -1444,16 +1460,23 @@ async function runVision(source){
     vNote(visionErrText(e));
   } finally {
     visionBusy = false;
-    $('#btnVisionPick').disabled = false; $('#btnVisionDemo').disabled = false;
+    pickBtn.textContent = pickLabel;
+    $('#visionFile').disabled = false;
+    $('#btnVisionDemo').disabled = false;
   }
 }
 
 if(cloudReady()){
   $('#visionCard').style.display = '';
+  // 主力路径是盖在按钮上的透明 file input（原生点击）；这里只是键盘/极端情况下的兜底
   $('#btnVisionPick').onclick = function(){ $('#visionFile').click(); };
   $('#visionFile').addEventListener('change', function(){
     var f = this.files && this.files[0]; if(!f) return;
     if(f.size > 12 * 1024 * 1024){ vNote('图片太大了（超过 12MB），换一张或截小一点。'); this.value = ''; return; }
+    if(!/^image\//.test(f.type || '')){
+      vNote('这个文件不是图片（可能是 iPhone 的 HEIC）。在相册里先「存储为 JPG」，或直接用下面的「粘文字」。');
+      this.value = ''; return;
+    }
     var url = URL.createObjectURL(f);
     runVision(imgToDataUrl(url, 2000)).then(function(){ URL.revokeObjectURL(url); });
     this.value = '';
