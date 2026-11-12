@@ -295,8 +295,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 </div>
 <div id="coachBadge" class="coach-badge hidden">1</div>
 
-<!-- 云端识图（免密钥）。离线单文件里这个脚本加载不到，会自动隐藏该入口，其余功能照常 -->
-<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js" onerror="window.__cloudSdkFailed=true"></script>
+<!-- 云端识图（免密钥）。SDK 改成运行时异步加载：外链一旦卡住，
+     同步脚本会把整页 JS 堵死（连生成报告都点不动），这是必须避免的 -->
 <script>
 /* 从「截图里复制出来的文字」里把候选商品还原成结构化数据。
  *
@@ -1466,12 +1466,26 @@ async function runVision(source){
   }
 }
 
-if(cloudReady()){
+/* 识图卡：只在应用域名下出现；即使 SDK 没就绪也照常显示，
+   否则卡片被隐藏、按钮消失，用户只会看到「点了没反应」。 */
+var ON_APP_ORIGIN = /(^|\.)app\.workbuddy\.host$/i.test(location.hostname);
+if(ON_APP_ORIGIN){
   $('#visionCard').style.display = '';
+
   // 主力路径是盖在按钮上的透明 file input（原生点击）；这里只是键盘/极端情况下的兜底
-  $('#btnVisionPick').onclick = function(){ $('#visionFile').click(); };
+  $('#btnVisionPick').onclick = function(){
+    if(!cloudReady()){ vNote('识图服务还没连上。下拉刷新页面重试，或改用下面的「粘文字」。'); return; }
+    $('#visionFile').click();
+  };
+
+  // 选图框始终放行（原生弹窗无害）；服务没连上时在选完之后明确告知，而不是静默失败
   $('#visionFile').addEventListener('change', function(){
     var f = this.files && this.files[0]; if(!f) return;
+    if(!cloudReady()){
+      this.value = '';
+      vNote('识图服务还没连上，这张图暂时读不了。等两秒再点一次，或改用下面的「粘文字」。');
+      return;
+    }
     if(f.size > 12 * 1024 * 1024){ vNote('图片太大了（超过 12MB），换一张或截小一点。'); this.value = ''; return; }
     if(!/^image\//.test(f.type || '')){
       vNote('这个文件不是图片（可能是 iPhone 的 HEIC）。在相册里先「存储为 JPG」，或直接用下面的「粘文字」。');
@@ -1481,7 +1495,38 @@ if(cloudReady()){
     runVision(imgToDataUrl(url, 2000)).then(function(){ URL.revokeObjectURL(url); });
     this.value = '';
   });
-  $('#btnVisionDemo').onclick = function(){ runVision('example-jd.jpg'); };
+
+  $('#btnVisionDemo').onclick = function(){
+    if(!cloudReady()){ vNote('识图服务还没连上。下拉刷新页面重试，或改用下面的「粘文字」。'); return; }
+    runVision('example-jd.jpg');
+  };
+
+  // 异步加载 SDK：不再阻塞页面脚本。成功后自动可用，失败给明确提示而不是装死。
+  var SDK_URL = 'https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js';
+  var sdkTries = 0, sdkLoading = false;
+  function loadSdk(){
+    if(cloudReady() || sdkLoading) return;
+    sdkLoading = true; sdkTries++;
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = SDK_URL + (sdkTries > 1 ? '?r=' + sdkTries : '');
+    s.onload = function(){
+      sdkLoading = false;
+      if(cloudReady()){ window.__cloudSdkFailed = false; vNote('识图服务已连上，可以选图了。'); }
+      else if(sdkTries < 3){ setTimeout(loadSdk, 800); }
+      else vNote('识图服务没能启动。可以改用下面的「粘文字」，它不依赖网络。');
+    };
+    s.onerror = function(){
+      sdkLoading = false;
+      if(sdkTries < 3){ setTimeout(loadSdk, 1200); }
+      else vNote('连不上识图服务（网络或浏览器拦截）。可以改用下面的「粘文字」，它不需要网络。');
+    };
+    document.head.appendChild(s);
+  }
+  if(!cloudReady()){
+    vNote('识图服务正在连接……若长时间没反应，可用下面的「粘文字」，它不需要网络。');
+    loadSdk();
+  }
 }
 
 /* ---------- 截图文字 → 自动填表 ---------- */
