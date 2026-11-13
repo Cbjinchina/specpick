@@ -160,7 +160,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:38（识别后给明确建议）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 10:18（多张累加 + 同图拦截 + 自动重试）</p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -222,13 +222,14 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       <div class="tip">
         <b>电脑</b>：截图后按 <b>Ctrl+V</b>（Mac ⌘V）粘在本页面任意位置，或把图片拖进来。<br>
         <b>手机</b>：点下面的按钮，拍照或从相册选一张。<br>
+        <b>可以连着传好几张</b>：第一张进来后按钮会变成「再加一张图」，每张都<b>往后加、不覆盖</b>前面的，名称和价格重复的自动跳过。<br>
         读完自动填表，<b>你不用申请任何 Key</b>。只读名称和参数，<b>不打分、不排序、不推荐</b>；图片只用于这次识别，不会被存成商品库。
       </div>
       <div class="pickwrap">
         <button type="button" class="primary" id="btnVisionPick">拍照 / 从相册选图</button>
         <input type="file" id="visionFile" accept="image/*" class="filegrab" aria-label="拍照或从相册选图">
       </div>
-      <div class="tip" style="margin:8px 0 10px">选完大约 10–15 秒出结果，能一次读出整屏商品。</div>
+      <div class="tip" style="margin:8px 0 10px">选完大约 10–30 秒出结果，能一次读出整屏商品；多张图可以一张张接着传。</div>
       <div class="toolbar">
         <button class="mini" id="btnVisionDemo">没有截图？用示例图试一下</button>
       </div>
@@ -1143,81 +1144,198 @@ async function visionRecognize(dataUrl){
   return answer;
 }
 
-function applyVision(payload){
+/* 当前这批候选是不是还等于案例自带的示例：是的话，第一张图直接顶替示例；
+   只要用户动过（改过值、加过图、手动加过候选），后面每张图就只往后加，绝不覆盖。 */
+function caseBaselineItems(){
+  var id = state && state.caseId;
+  var data = (CASES && CASES[id]) ? CASES[id].data : blank();
+  try { return normalize(JSON.parse(JSON.stringify(data))).items; } catch(e){ return null; }
+}
+function itemsUntouched(){
+  var base = caseBaselineItems();
+  if(!base) return false;
+  return JSON.stringify(state.items) === JSON.stringify(base);
+}
+function visionBtnLabel(){
+  if(state && state.items && state.items.length && !itemsUntouched()) return '＋ 再加一张图（加进列表）';
+  return '拍照 / 从相册选图';
+}
+
+/* ---------- 判重：价格相同 + 名称高度相似，就算同一件 ----------
+   ＊ 同一张图两次识别的名称经常差一个空格、括号或「DLSS 5 / DLSS 4」，
+     严格字符串比对拦不住，会越传越多。 */
+function nameCore(s){
+  return String(s || '')
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[（）()\[\]【】<>《》「」『』|/\\·,，。.、:：;；'"“”‘’!！?？~—\-_+*@#&]+/g, '')
+    .toLowerCase();
+}
+function bigramsOf(s){
+  var o = {}, i;
+  for(i = 0; i < s.length - 1; i++) o[s.substr(i, 2)] = 1;
+  return o;
+}
+function sameItem(a, b){
+  var pa = Math.round(Number(a && a.price) || 0), pb = Math.round(Number(b && b.price) || 0);
+  if(pa !== pb) return false;
+  var ca = nameCore(a.name), cb = nameCore(b.name);
+  if(!ca || !cb) return false;
+  if(ca === cb) return true;
+  if(Math.abs(ca.length - cb.length) > Math.max(6, ca.length * 0.4)) return false;
+  var A = bigramsOf(ca), B = bigramsOf(cb), inter = 0;
+  var ka = Object.keys(A).length, kb = Object.keys(B).length;
+  if(!ka || !kb) return false;
+  for(var k in A){ if(B[k]) inter++; }
+  return (inter / Math.min(ka, kb)) >= 0.85;
+}
+
+function applyVision(payload, opts){
+  opts = opts || {};
+  var noteEl = opts.note ? $(opts.note) : $('#visionNote');
+  var scrollEl = opts.scroll ? $(opts.scroll) : $('#visionCard');
   var raw = (payload && payload.items ? payload.items : []).filter(function(it){
     return it && it.name && Number(it.price) > 0;
   });
   if(!raw.length) return 0;
 
-  // 长截图里同一张卡片会被读两遍：按「名称+价格」去重，保留字段更全的那条
-  var seen = {}, list = [];
+  // 长截图里同一张卡片会被读两遍：同批内先按「价格 + 名称相似」去重
+  var list = [];
   raw.forEach(function(it){
-    var key = String(it.name).replace(/\s/g, '').toLowerCase() + '|' + Number(it.price);
-    if(seen[key]) return;
-    seen[key] = 1;
+    for(var i = 0; i < list.length; i++) if(sameItem(it, list[i])) return;
     list.push(it);
   });
   var total = list.length;
   if(list.length > 20) list = list.slice(0, 20);
 
+  var replace = itemsUntouched();
   var backup = JSON.stringify(state.items);
-  state.items = list.map(function(it, i){
-    var o = { id: String.fromCharCode(65 + (i % 26)), name: String(it.name).slice(0, 80), price: Number(it.price) || 0 };
+  var keep = replace ? [] : JSON.parse(JSON.stringify(state.items));
+  var pool = keep.slice();
+
+  // 续号：A、B…Z、A2、B2…，避开已在用的编号
+  var usedIds = {};
+  keep.forEach(function(it){ usedIds[it.id] = 1; });
+  function newId(){
+    for(var n = 0; n < 1000; n++){
+      var s = String.fromCharCode(65 + (n % 26)) + (n >= 26 ? String(Math.floor(n / 26) + 1) : '');
+      if(!usedIds[s]){ usedIds[s] = 1; return s; }
+    }
+    var alt = 'X' + Object.keys(usedIds).length;
+    usedIds[alt] = 1;
+    return alt;
+  }
+
+  var added = [], dup = 0;
+  list.forEach(function(it){
+    for(var i = 0; i < pool.length; i++){ if(sameItem(it, pool[i])){ dup++; return; } }
+    var o = { id: newId(), name: String(it.name).slice(0, 80), price: Number(it.price) || 0 };
     state.fields.forEach(function(f){
       var v = it[f.key];
       if(v === null || v === undefined || v === ''){ o[f.key] = (f.type === 'number' ? 0 : ''); return; }
       o[f.key] = (f.type === 'number') ? (Number(v) || 0) : String(v);
     });
-    return o;
+    added.push(o); pool.push(o);
   });
 
+  if(!added.length){
+    noteEl.innerHTML = '这张图和列表里已有的 ' + dup + ' 件是同一批（名称和价格都一样），没有重复添加。';
+    return state.items.length;
+  }
+
+  state.items = keep.concat(added);
   renderForm(); save(); run(true);
 
-  var blanks = 0, filled = 0;
-  state.items.forEach(function(it){
+  var blanks = 0, newFilled = 0;
+  added.forEach(function(it){
     state.fields.forEach(function(f){
       if(f.type === 'number' && !it[f.key]) blanks++;
-      if(it[f.key]) filled++;
+      if(it[f.key]) newFilled++;
     });
   });
-  var msg = '识别到 ' + state.items.length + ' 件';
-  if(total > state.items.length) msg += '（去重后，原有 ' + total + ' 条）';
-  msg += '。';
+  var msg;
+  if(replace){
+    msg = '识别到 ' + state.items.length + ' 件，已经<b>替换掉案例里的示例候选</b>。';
+  }else{
+    msg = '这张图加入 <b>' + added.length + ' 件</b>，列表现在共 ' + state.items.length + ' 件'
+      + (dup ? '（跳过 ' + dup + ' 件重复）' : '')
+      + '；前面几张的候选都还在，可以继续传下一张。';
+  }
   if(blanks) msg += '有 ' + blanks + ' 个数字是 0（图里没读到），请补上再采信报告。';
-  if(state.items.length < 2) msg += '<b>只读到 1 件，比不出胜负</b>：把列表里 2 件以上一起截进来，或用「+ 添加一个候选」手动再加一件。';
-  if(!filled && state.fields.length){
+  if(state.items.length < 2) msg += '<b>只读到 1 件，比不出胜负</b>：再传一张图，或用「+ 添加一个候选」手动再加一件。';
+  if(state.items.length > 24) msg += '<b>列表已经 ' + state.items.length + ' 件，太多反而看不出结论</b>：只留真正在比的 4–6 件，其余删掉。';
+  if(!newFilled && state.fields.length){
     msg += '<b>当前比较项和图里的参数对不上</b>——现在比的是「'
       + state.fields.slice(0, 4).map(function(f){ return f.label; }).join('、')
       + '」。先到「0 先选一个例子」里挑一个同类案例（看显卡就选显卡、看笔记本就选笔记本），再传这张图，参数才装得进去。';
   }
-  if(blanks || state.items.length < 2 || !filled) msg += '识别结果可能混进整机、套装，删掉不要的即可。';
-  $('#visionNote').innerHTML = msg + ' <button class="mini" id="btnUndoVision">撤销</button>';
+  if(blanks || state.items.length < 2 || !newFilled) msg += '识别结果可能混进整机、套装，删掉不要的即可。';
+  noteEl.innerHTML = msg + ' <button class="mini" id="btnUndoVision">撤销</button>';
   $('#btnUndoVision').onclick = function(){
     state.items = JSON.parse(backup);
     renderForm(); save(); run(true);
-    vNote('已撤销，回到识别前的候选。');
+    noteEl.textContent = '已撤销，回到传这张之前的状态。';
   };
-  if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+  if(window.innerWidth < 920) scrollEl.scrollIntoView({behavior:'smooth', block:'start'});
   return state.items.length;
+}
+
+/* 同一张图被重复传：靠内容指纹直接拦掉，别让模型再读一遍、也别多出重复候选。
+   指纹带上「当前案例 + 字段」，换个案例重读同一张图仍然允许（字段不同，读数不同）。 */
+var visionSeen = {};
+function imgFingerprint(dataUrl){
+  return new Promise(function(res){
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var c = document.createElement('canvas'); c.width = 8; c.height = 8;
+        var ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, 8, 8);
+        var d = ctx.getImageData(0, 0, 8, 8).data, g = [], sum = 0, i;
+        for(i = 0; i < 64; i++){
+          var v = d[i*4]*0.299 + d[i*4+1]*0.587 + d[i*4+2]*0.114;
+          g.push(v); sum += v;
+        }
+        var avg = sum / 64, bits = '';
+        for(i = 0; i < 64; i++) bits += (g[i] >= avg ? '1' : '0');
+        res(bits);
+      }catch(e){ res(''); }
+    };
+    img.onerror = function(){ res(''); };
+    img.src = dataUrl;
+  });
 }
 
 async function runVision(source){
   if(visionBusy) return;
   if(Date.now() - lastVisionAt < 4000){ vNote('刚识别过，等两秒再试。'); return; }
   visionBusy = true; lastVisionAt = Date.now();
-  var pickBtn = $('#btnVisionPick'), pickLabel = pickBtn.textContent;
+  var pickBtn = $('#btnVisionPick');
   pickBtn.textContent = '正在读图，请稍等……';
   $('#visionFile').disabled = true;
   $('#btnVisionDemo').disabled = true;
   vNote('正在读图……（一般 10–15 秒）');
   try {
     var dataUrl = (typeof source === 'string') ? await imgToDataUrl(source, 2000) : await source;
-    var raw = await visionRecognize(dataUrl);
-    var payload = parseLooseJson(raw);
-    if(!payload || !payload.items){
-      vNote('模型没返回可用的 JSON。可以重试一次，或改用「粘文字」。');
+    var fp = await imgFingerprint(dataUrl);
+    if(fp){
+      fp += '|' + (state.caseId || '') + '|' + state.fields.map(function(f){ return f.key; }).join(',');
+      if(visionSeen[fp]){
+        vNote('这张图和刚刚读过的是<b>同一张</b>，没有重复读取。换一张新截图就行；要是想按新案例重读，先换个例子再传。');
+        return;
+      }
+    }
+    // 模型偶尔会吐半截 JSON：自动再试一次，比让用户手动点更稳；两次都失败才报错
+    var payload = null;
+    for(var attempt = 0; attempt < 2 && !payload; attempt++){
+      var raw = await visionRecognize(dataUrl);
+      var parsed = parseLooseJson(raw);
+      if(parsed && parsed.items && parsed.items.length) payload = parsed;
+      else if(attempt === 0) vNote('第一次没读出来，正在再试一次……');
+    }
+    if(!payload){
+      vNote('模型两次都没返回可用结果。换一张更清晰的截图，或改用下面的「粘文字」。');
       return;
     }
+    if(fp) visionSeen[fp] = 1;   // 读成功才记指纹，失败后允许重传同一张
     var n = applyVision(payload);
     if(!n) vNote('图里没认出带价格的商品。试试把商品列表截得更完整，或改用「粘文字」。');
     else toast('已识别 ' + n + ' 件');
@@ -1225,7 +1343,7 @@ async function runVision(source){
     vNote(visionErrText(e));
   } finally {
     visionBusy = false;
-    pickBtn.textContent = pickLabel;
+    pickBtn.textContent = visionBtnLabel();
     $('#visionFile').disabled = false;
     $('#btnVisionDemo').disabled = false;
   }
@@ -1339,32 +1457,16 @@ function pasteFill(){
     return;
   }
 
-  var backup = JSON.stringify(state.items);
-  state.items = res.items.map(function(it, i){
-    var o = { id:String.fromCharCode(65 + (i % 26)), name:it.name, price:it.price };
+  // 走同一条合并逻辑：示例候选 → 顶替；已有候选 → 往后加，不覆盖
+  var payload = { items: res.items.map(function(it){
+    var o = { name: it.name, price: it.price };
     state.fields.forEach(function(f){
-      var v = it.guessed ? it.guessed[f.key] : undefined;
-      o[f.key] = (v === undefined || v === null || v === '') ? (f.type === 'number' ? 0 : '') : v;
+      o[f.key] = it.guessed ? it.guessed[f.key] : null;
     });
     return o;
-  });
-
-  renderForm(); save(); run(true);
-
-  var blanks = 0;
-  state.items.forEach(function(it){
-    state.fields.forEach(function(f){ if(f.type === 'number' && !it[f.key]) blanks++; });
-  });
-  var msg = '已填入 ' + state.items.length + ' 件';
-  if(res.unpriced.length) msg += '，其中 ' + res.unpriced.length + ' 件没认出价格，需要你补';
-  if(blanks) msg += '；另有 ' + blanks + ' 个数字还是 0，请核对后再采信报告';
-  note.innerHTML = msg + '。 <button class="mini" id="btnUndoPaste">撤销</button>';
-  $('#btnUndoPaste').onclick = function(){
-    state.items = JSON.parse(backup);
-    renderForm(); save(); run(true);
-    note.textContent = '已撤销，回到识别前的候选。';
-  };
-  toast('已识别 ' + state.items.length + ' 件');
+  }) };
+  applyVision(payload, { note:'#pasteNote', scroll:'#pasteCard' });
+  toast('已加入候选');
   if(window.innerWidth < 920) $('#pasteCard').scrollIntoView({behavior:'smooth', block:'start'});
 };
 
@@ -1599,6 +1701,7 @@ window.addEventListener('resize', function(){ if(coachIdx >= 0) coachSync(); });
   }else{
     setCase('kitchen');
   }
+  $('#btnVisionPick').textContent = visionBtnLabel();
 })();
 })();
 </script>
