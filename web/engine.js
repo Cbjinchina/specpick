@@ -34,6 +34,34 @@
     return String(v);
   }
 
+  // 与 engine.py 的 to_num 一一对应：抽得出数字就给数字，抽不出给 null（这项没数据）。
+  var NUM_RE = /[-+]?\d[\d,]*(?:\.\d+)?/;
+  var SCALE = { '万': 10000, 'w': 10000, 'W': 10000, '千': 1000, 'k': 1000, 'K': 1000 };
+
+  function flatKey(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
+
+  function toNum(value, ranks) {
+    if (value === null || value === undefined || typeof value === 'boolean') return null;
+    if (typeof value === 'number') return isFinite(value) ? value : null;
+    var text = String(value).trim();
+    if (!text) return null;
+    if (ranks && ranks.length) {
+      var flat = flatKey(text);
+      for (var i = 0; i < ranks.length; i++) {
+        var key = flatKey(ranks[i]);
+        if (key && (key === flat || flat.indexOf(key) !== -1)) return i;
+      }
+      return null; // 定义了档位就只认档位词，不能把「4」当第 5 档
+    }
+    var m = NUM_RE.exec(text);
+    if (!m) return null;
+    var num = parseFloat(m[0].replace(/,/g, ''));
+    if (!isFinite(num)) return null;
+    var tail = text.charAt(m.index + m[0].length);
+    if (SCALE[tail] !== undefined) num *= SCALE[tail];
+    return num;
+  }
+
   var OPS = {
     '<=': function (a, b) { return a <= b; },
     '<': function (a, b) { return a < b; },
@@ -89,16 +117,35 @@
     return errors;
   }
 
+  function compare(actual, op, expected, ranks) {
+    // 返回 true/false；null 表示「值里读不出可比的数字」
+    if (op === 'in' || op === 'not_in') return OPS[op](actual, expected);
+    var a = toNum(actual, ranks), b = toNum(expected);
+    if (op === '==' || op === '!=') {
+      if (a !== null && b !== null) return OPS[op](a, b);
+      return OPS[op](String(actual).trim(), String(expected).trim());
+    }
+    if (a === null || b === null) return null;
+    return OPS[op](a, b);
+  }
+
   function hardReasons(item, needs) {
     var reasons = [];
-    if (item.price > needs.budget) {
+    var ranks = needs.ranks || {};
+    var price = toNum(item.price);
+    if (price !== null && needs.budget !== null && needs.budget !== undefined && price > Number(needs.budget)) {
       reasons.push('价格 ¥' + pyVal(item.price) + ' 超出预算 ¥' + pyVal(needs.budget));
     }
     (needs.hard || []).forEach(function (rule) {
       var actual = item[rule.field];
       if (actual === undefined || actual === null) {
         reasons.push('缺少 ' + rule.field + ' 数据，无法验证「' + rule.label + '」');
-      } else if (!OPS[rule.op](actual, rule.value)) {
+        return;
+      }
+      var ok = compare(actual, rule.op, rule.value, ranks[rule.field]);
+      if (ok === null) {
+        reasons.push('「' + rule.label + '」这一项填的是「' + actual + '」，读不出数字，无法验证');
+      } else if (!ok) {
         reasons.push(rule.label + '（实际 ' + pyVal(actual) + '，要求 ' +
                      rule.op + ' ' + pyVal(rule.value) + '）');
       }
@@ -106,9 +153,12 @@
     return reasons;
   }
 
-  function bounds(items, metric) {
-    var values = items.map(function (it) { return Number(it[metric]); });
-    return [Math.min.apply(null, values), Math.max.apply(null, values)];
+  function boundsOf(values, itemCount) {
+    var nums = values.filter(function (v) { return v !== null; });
+    if (!nums.length) return null;
+    // 只有一件候选有数据：定不出高低，给了它满分等于白送，整项按「比不了」处理
+    if (nums.length < 2 && itemCount > 1) return null;
+    return [Math.min.apply(null, nums), Math.max.apply(null, nums)];
   }
 
   function norm(value, low, high, direction) {
@@ -117,23 +167,35 @@
     return direction === 'higher' ? ratio : 1.0 - ratio;
   }
 
-  function scoreItems(items, weights, directions) {
+  function scoreItems(items, weights, directions, ranks) {
+    ranks = ranks || {};
     var metrics = Object.keys(weights);
-    var bd = {};
-    metrics.forEach(function (m) { bd[m] = bounds(items, m); });
-    var scored = items.map(function (item) {
-      var parts = {};
+    var values = {}, bounds = {};
+    metrics.forEach(function (m) {
+      values[m] = items.map(function (it) { return toNum(it[m], ranks[m]); });
+      bounds[m] = boundsOf(values[m], items.length);
+    });
+    var totalW = 0;
+    metrics.forEach(function (m) { if (bounds[m] !== null) totalW += Number(weights[m]); });
+    var scored = items.map(function (item, idx) {
+      var parts = {}, avail = 0, known = 0;
       metrics.forEach(function (m) {
-        var b = bd[m];
-        parts[m] = pyRound(Number(weights[m]) * norm(item[m], b[0], b[1], directions[m]), 4);
+        var weight = Number(weights[m]);
+        var b = bounds[m], v = values[m][idx];
+        if (b === null || v === null) { parts[m] = null; return; }
+        parts[m] = pyRound(weight * norm(v, b[0], b[1], directions[m]), 4);
+        known += parts[m];
+        avail += weight;
       });
-      var total = 0;
-      metrics.forEach(function (m) { total += parts[m]; });
+      var total;
+      if (avail <= 0) total = 0.0;
+      else if (avail < totalW) total = pyRound(known * totalW / avail, 4);
+      else total = pyRound(known, 4);
       return {
         item_id: String(item.id),
         name: String(item.name),
         price: item.price,
-        total: pyRound(total, 4),
+        total: total,
         parts: parts
       };
     });
@@ -145,32 +207,39 @@
     return scored;
   }
 
-  function counterfactual(items, winner, runnerUp, weights, directions) {
+  function counterfactual(items, winner, runnerUp, weights, directions, ranks) {
+    ranks = ranks || {};
     var gap = winner.total - runnerUp.total;
     if (gap <= 0) return [];
     var byId = {};
     items.forEach(function (it) { byId[String(it.id)] = it; });
     var challenger = byId[runnerUp.item_id];
     var bd = {};
-    Object.keys(weights).forEach(function (m) { bd[m] = bounds(items, m); });
+    Object.keys(weights).forEach(function (m) {
+      bd[m] = boundsOf(items.map(function (it) { return toNum(it[m], ranks[m]); }), items.length);
+    });
     var moves = [];
     Object.keys(weights).forEach(function (metric) {
       var weight = Number(weights[metric]);
       if (weight <= 0) return;
-      var low = bd[metric][0], high = bd[metric][1];
+      var b = bd[metric];
+      if (b === null) return;
+      var low = b[0], high = b[1];
       if (high === low) return;
+      var current = toNum(challenger[metric], ranks[metric]);
+      if (current === null) return;
       var needed = gap / weight;
-      var currentNorm = norm(challenger[metric], low, high, directions[metric]);
+      var currentNorm = norm(current, low, high, directions[metric]);
       var targetNorm = currentNorm + needed;
       if (targetNorm > 1.0 + 1e-4) return;
       var target = directions[metric] === 'higher'
         ? low + targetNorm * (high - low)
         : high - targetNorm * (high - low);
       target = Math.max(low, Math.min(high, target));
-      var delta = Math.abs(target - Number(challenger[metric]));
+      var delta = Math.abs(target - current);
       moves.push({
         metric: metric,
-        current: Number(challenger[metric]),
+        current: current,
         target: pyRound(target, 2),
         relative: pyRound(delta / (high - low), 4)
       });
@@ -179,8 +248,8 @@
     return moves;
   }
 
-  function sensitivity(items, weights, directions) {
-    var baseline = scoreItems(items, weights, directions)[0].item_id;
+  function sensitivity(items, weights, directions, ranks) {
+    var baseline = scoreItems(items, weights, directions, ranks)[0].item_id;
     var trials = 0, flips = [];
     Object.keys(weights).forEach(function (metric) {
       [0.75, 1.25].forEach(function (factor) {
@@ -188,7 +257,7 @@
         Object.keys(weights).forEach(function (m) { perturbed[m] = weights[m]; });
         perturbed[metric] = Number(weights[metric]) * factor;
         trials += 1;
-        var top = scoreItems(items, perturbed, directions)[0].item_id;
+        var top = scoreItems(items, perturbed, directions, ranks)[0].item_id;
         if (top !== baseline) flips.push(metric + ' ×' + factor);
       });
     });
@@ -232,14 +301,14 @@
     });
 
     if (eligible.length) {
-      result.accepted = scoreItems(eligible, needs.weights, needs.directions);
+      result.accepted = scoreItems(eligible, needs.weights, needs.directions, needs.ranks);
     }
     result.winner = result.accepted[0] || null;
     result.runner_up = result.accepted[1] || null;
     if (result.accepted.length >= 2) {
       result.moves = counterfactual(eligible, result.accepted[0], result.accepted[1],
-                                    needs.weights, needs.directions);
-      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions);
+                                    needs.weights, needs.directions, needs.ranks);
+      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions, needs.ranks);
     }
     return { result: result, errors: [] };
   }
@@ -251,6 +320,7 @@
     scoreItems: scoreItems,
     counterfactual: counterfactual,
     sensitivity: sensitivity,
+    toNum: toNum,
     pyRound: pyRound
   };
 });

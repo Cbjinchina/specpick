@@ -88,6 +88,15 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 20px;font-size:12px;color:v
 select.pick{max-width:100%;font-size:15px}
 .hrow{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:8px}
 .hrow .full{grid-column:1 / -1}
+.row .rline{margin-top:8px}
+.row .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.45}
+.item .fields .i-hint{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.35}
+.item .fields .i-hint.warn{color:var(--warn)}
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.score{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
+table.score th,table.score td{border:1px solid var(--line);padding:5px 6px;text-align:right;white-space:nowrap}
+table.score th:first-child,table.score td:first-child{text-align:left;white-space:normal;min-width:96px}
+table.score td.na{color:var(--muted)}
 .hidden{display:none}
 /* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
 .pickwrap{position:relative;display:block}
@@ -160,7 +169,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 10:18（多张累加 + 同图拦截 + 自动重试）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:45（数字项吞原文 + 档位打分 + 缺数据不倒扣）</p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -261,7 +270,11 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       </div>
 
       <h2 style="margin-top:20px"><span class="n">2</span> 你在意哪些方面</h2>
-      <p class="tip">每一行是一个比较项。数字项可以打分，文字项只用来做筛选。权重 0 表示「不参与打分，只用来筛选」。</p>
+      <p class="tip">每一行是一个比较项，三种用法：<b>数字</b>（越大/越小越好，能打分）、
+        <b>档位</b>（先给文字排个顺序，文字也能打分）、<b>文字</b>（只用来筛选，不打分）。
+        权重 0 也等于「只筛选」。数字项不用自己换算 —— 把截图上的原文贴进去就行，
+        比如 <code>8GB GDDR7</code>、<code>跑分 28000</code>、<code>1.2万</code>，它自己抽数字；
+        一个数都读不到就算「没数据」，不会倒扣分。</p>
       <div id="fields"></div>
       <button class="mini" id="btnAddField">+ 添加一个比较项</button>
 
@@ -462,10 +475,14 @@ function load(){
 }
 function normalize(s){
   s.fields = (s.fields||[]).map(function(f){
-    return {key:String(f.key||'m'),label:String(f.label||f.key||''),
-      type:f.type==='text'?'text':'number',
+    var type = (f.type==='text'||f.type==='rank') ? f.type : 'number';
+    var o = {key:String(f.key||'m'),label:String(f.label||f.key||''),
+      type:type,
       direction:f.direction==='lower'?'lower':'higher',
       weight:Number(f.weight)||0};
+    if(type==='rank') o.ranks = parseRanks(f.ranks);
+    if(type==='text') o.weight = 0;
+    return o;
   });
   s.hard = (s.hard||[]).map(function(h){
     return {field:String(h.field||'price'),op:String(h.op||'<='),
@@ -475,8 +492,9 @@ function normalize(s){
     var o = {id:String(it.id||String.fromCharCode(65+idx)),name:String(it.name||''),price:Number(it.price)||0};
     s.fields.forEach(function(f){
       var v = it[f.key];
-      if(v === undefined || v === null || v === ''){ o[f.key] = f.type==='number' ? 0 : ''; return; }
-      o[f.key] = f.type==='number' ? Number(v) : String(v);
+      if(v === undefined || v === null || v === ''){ o[f.key] = (f.type==='number' ? null : ''); return; }
+      // 数字项保留原文（「8GB」也算），抽数字交给引擎，界面和报告里还能看到原话
+      o[f.key] = (f.type==='number' && typeof v!=='number') ? String(v) : v;
     });
     return o;
   });
@@ -510,20 +528,53 @@ function parseHardVal(text, op){
   return t;
 }
 
+var TYPE_NAME = {number:'数字', rank:'档位', text:'文字'};
+function rankList(f){
+  var r = f.ranks;
+  if(!r || !r.length) r = ['低','中','高'];
+  return r;
+}
+function parseRanks(v){
+  var arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[,，>＞→\/|]+/);
+  return arr.map(function(x){ return String(x).trim(); }).filter(function(x){ return x; });
+}
+function numHint(v){
+  if(v === '' || v == null) return '没填 → 这项算「没数据」，不倒扣分';
+  var n = Specpick.toNum(v);
+  if(n == null) return '读不出数字 → 这项算「没数据」，不倒扣分';
+  return '按 ' + n + ' 计分';
+}
 function renderFields(){
   $('#fields').innerHTML = state.fields.map(function(f,i){
+    var isText = f.type === 'text';
+    var dirSel = f.type === 'rank'
+      ? '<select class="f-dir" data-i="'+i+'" disabled><option value="higher" selected>档位越高越好</option></select>'
+      : '<select class="f-dir" data-i="'+i+'"><option value="higher"'+(f.direction==='higher'?' selected':'')+'>越大越好</option>'+
+        '<option value="lower"'+(f.direction==='lower'?' selected':'')+'>越小越好</option></select>';
+    var extra = '';
+    if(f.type === 'rank'){
+      extra = '<div class="rline"><input class="full f-ranks" data-i="'+i+'" '+
+        'placeholder="从低到高排，用逗号分隔，如：低, 中, 高" value="'+esc(rankList(f).join(', '))+'">'+
+        '<div class="hint">候选里会变成下拉框，越靠后分越高。适合「做工」「噪音」「手感」这种只能分档的项。</div></div>';
+    }else if(f.type === 'number'){
+      extra = '<div class="hint">候选框里可以贴原文：<code>8GB GDDR7</code>、<code>跑分 28000</code>、<code>1.2万</code>，自动抽数字。</div>';
+    }else{
+      extra = '<div class="hint">文字不参与打分，只用来做筛选条件或在报告里展示。</div>';
+    }
     return '<div class="row" data-fi="'+i+'">'+
       '<div class="hd"><span>比较项 '+(i+1)+' · '+(f.weight>0?'参与打分':'只用于筛选')+'</span>'+
       '<button class="del" data-del="field" data-i="'+i+'">删除</button></div>'+
       '<div class="grid">'+
-        '<input class="full f-label" data-i="'+i+'" placeholder="名称，如：重量" value="'+esc(f.label)+'">'+
-        '<select class="f-type" data-i="'+i+'"><option value="number"'+(f.type==='number'?' selected':'')+'>数字</option>'+
-          '<option value="text"'+(f.type==='text'?' selected':'')+'>文字</option></select>'+
-        '<select class="f-dir" data-i="'+i+'"><option value="higher"'+(f.direction==='higher'?' selected':'')+'>越大越好</option>'+
-          '<option value="lower"'+(f.direction==='lower'?' selected':'')+'>越小越好</option></select>'+
-      '</div>'+
+        '<input class="full f-label" data-i="'+i+'" placeholder="名称，如：性能 / 重量" value="'+esc(f.label)+'">'+
+        '<select class="f-type" data-i="'+i+'">'+
+          '<option value="number"'+(f.type==='number'?' selected':'')+'>数字 · 打分</option>'+
+          '<option value="rank"'+(f.type==='rank'?' selected':'')+'>档位 · 打分</option>'+
+          '<option value="text"'+(f.type==='text'?' selected':'')+'>文字 · 筛选</option></select>'+
+        dirSel+
+      '</div>'+ extra +
       '<div class="wline"><span class="small">权重</span>'+
-        '<input type="range" class="f-weight" data-i="'+i+'" min="0" max="5" step="1" value="'+f.weight+'">'+
+        '<input type="range" class="f-weight" data-i="'+i+'" min="0" max="5" step="1" value="'+f.weight+'"'+
+          (isText?' disabled':'')+'>'+
         '<span class="wv">'+f.weight+'</span></div>'+
     '</div>';
   }).join('');
@@ -545,16 +596,30 @@ function renderItems(){
   $('#items').innerHTML = state.items.map(function(it,i){
     var fs = state.fields.map(function(f){
       var v = it[f.key];
-      return '<div><label>'+esc(f.label||f.key)+'</label>'+
-        '<input class="i-field" data-i="'+i+'" data-key="'+esc(f.key)+'" '+
-        (f.type==='number'?'type="number" inputmode="decimal"':'type="text"')+
-        ' value="'+esc(v == null ? '' : v)+'"></div>';
+      var raw = (v === null || v === undefined) ? '' : v;
+      var head = '<label>'+esc(f.label||f.key)+'</label>';
+      if(f.type === 'rank'){
+        var opts = '<option value="">（没数据）</option>' + rankList(f).map(function(r){
+          return '<option value="'+esc(r)+'"'+(String(raw)===String(r)?' selected':'')+'>'+esc(r)+'</option>';
+        }).join('');
+        return '<div>'+head+'<select class="i-field" data-i="'+i+'" data-key="'+esc(f.key)+'">'+opts+'</select></div>';
+      }
+      if(f.type === 'number'){
+        var hint = numHint(raw);
+        var bad = (raw !== '' && Specpick.toNum(raw) == null);
+        return '<div>'+head+
+          '<input class="i-field" data-i="'+i+'" data-key="'+esc(f.key)+'" type="text" inputmode="decimal" '+
+          'placeholder="8GB / 28000 分 / 1.2万" value="'+esc(raw)+'">'+
+          '<span class="i-hint'+(bad?' warn':'')+'">'+esc(hint)+'</span></div>';
+      }
+      return '<div>'+head+'<input class="i-field" data-i="'+i+'" data-key="'+esc(f.key)+'" type="text" '+
+        'value="'+esc(raw)+'"></div>';
     }).join('');
     return '<div class="item" data-ii="'+i+'">'+
       '<div class="hd"><span>候选 '+it.id+'</span><button class="del" data-del="item" data-i="'+i+'">删除</button></div>'+
       '<div class="top">'+
         '<input class="i-name" data-i="'+i+'" placeholder="名称" value="'+esc(it.name)+'">'+
-        '<input class="i-price" data-i="'+i+'" type="number" inputmode="decimal" placeholder="价格" value="'+esc(it.price)+'">'+
+        '<input class="i-price" data-i="'+i+'" type="text" inputmode="decimal" placeholder="价格" value="'+esc(it.price)+'">'+
       '</div>'+
       '<div class="fields">'+fs+'</div></div>';
   }).join('');
@@ -678,17 +743,27 @@ $('#rvOut').addEventListener('click', function(e){
 function buildCase(){
   var needs = { title:state.title, scene:state.scene, budget:state.budget,
                 weights:{}, directions:{}, hard:[] };
+  var ranks = {};
   if(state.priceWeight>0){ needs.weights.price = state.priceWeight; needs.directions.price = 'lower'; }
   state.fields.forEach(function(f){
+    if(f.type === 'rank') ranks[f.key] = rankList(f);  // 权重 0 时硬要求也要认档位词
     if(f.weight>0 && f.type==='number'){
       needs.weights[f.key] = f.weight;
       needs.directions[f.key] = f.direction;
     }
+    if(f.weight>0 && f.type==='rank'){
+      needs.weights[f.key] = f.weight;
+      needs.directions[f.key] = 'higher';
+    }
   });
+  if(Object.keys(ranks).length) needs.ranks = ranks;
   state.hard.forEach(function(h){ needs.hard.push({field:h.field,op:h.op,value:h.value,label:h.label||h.field}); });
   var items = state.items.map(function(it){
     var o = {id:it.id,name:it.name,price:it.price};
-    state.fields.forEach(function(f){ o[f.key] = it[f.key]; });
+    state.fields.forEach(function(f){
+      var v = it[f.key];
+      o[f.key] = (v === undefined) ? null : v;
+    });
     return o;
   });
   return {needs:needs, items:items};
@@ -702,6 +777,38 @@ function lab(key){
     vram_gb:'显存(GB)',fan_count:'风扇数',tier:'型号档位'};
   var f = state.fields.filter(function(x){return x.key===key;})[0];
   return map[key] || (f && f.label) || (key==='price'?'价格':key);
+}
+/* 每个比较项在候选里到底有几件填得出数字（用来解释「无数据」和「比不了」） */
+function metricFills(r){
+  var out = {};
+  Object.keys(r.weights).forEach(function(m){
+    var total = state.items.length;
+    if(m === 'price'){ out[m] = {has:total, total:total}; return; }
+    var f = state.fields.filter(function(x){ return x.key===m; })[0];
+    if(!f){ out[m] = {has:total, total:total}; return; }
+    var ranks = f.type === 'rank' ? rankList(f) : undefined;
+    var has = 0;
+    state.items.forEach(function(it){ if(Specpick.toNum(it[m], ranks) != null) has++; });
+    out[m] = {has:has, total:total};
+  });
+  return out;
+}
+/* 缺数据 / 比不了的说明，网页版和文字版共用一份口径 */
+function missingNotes(r){
+  var fills = metricFills(r), notes = [];
+  Object.keys(r.weights).forEach(function(m){
+    var c = fills[m] || {has:0, total:0};
+    if(c.total > 1 && c.has === 0){
+      notes.push('「'+lab(m)+'」一件都没填到数字，整项没参与打分');
+    }else if(c.total > 1 && c.has === 1){
+      notes.push('「'+lab(m)+'」只有 1 件填了数据 —— 一个点定不出高低，这项对所有人都不算分');
+    }else if(c.has < c.total){
+      var lack = [];
+      r.accepted.forEach(function(s){ if(s.parts[m] == null) lack.push(s.name); });
+      if(lack.length) notes.push('「'+lab(m)+'」缺 '+lack.join('、')+' 的数据，这几件的总分按其余项等比折算');
+    }
+  });
+  return notes;
 }
 function renderReport(res){
   var el = $('#report');
@@ -728,6 +835,26 @@ function renderReport(res){
         ' <span class="badge">¥'+esc(s.price)+'</span></span><b>'+fmt(s.total)+'</b></div>'+
         '<div class="bar"><i style="width:'+Math.max(2,Math.round(s.total/max*100))+'%"></i></div></div>';
     });
+    // 每一项各拿多少分：总分从哪来、谁「没数据」，一眼可见
+    var ms = Object.keys(r.weights);
+    html += '<div class="sec">每一项各得多少分</div><div class="tblwrap"><table class="score"><tr><th>候选</th>'+
+      ms.map(function(m){ return '<th>'+esc(lab(m))+'</th>'; }).join('')+'<th>总分</th></tr>';
+    r.accepted.forEach(function(s){
+      html += '<tr><td>'+esc(s.name)+'</td>';
+      ms.forEach(function(m){
+        var p = s.parts[m];
+        if(p == null){ html += '<td class="na">无数据</td>'; }
+        else html += '<td>'+fmt(p)+'</td>';
+      });
+      html += '<td><b>'+fmt(s.total)+'</b></td></tr>';
+    });
+    html += '</table></div>';
+    // 谁没数据、哪一项根本比不了，说清楚，别让人对着「无数据」猜
+    var notes = missingNotes(r);
+    if(notes.length){
+      html += '<div class="small">'+notes.map(esc).join('；')+
+        '。缺数据不会被当成 0 分 —— 缺一项不该直接把候选判死，所以单列出来让你自己判断。</div>';
+    }
   }
   if(r.rejected.length){
     html += '<div class="sec">为什么没选它们</div><ul class="plain">';
@@ -770,6 +897,14 @@ function markdown(r){
     L.push('| '+lab(m)+' (`'+m+'`) | '+(r.directions[m]==='higher'?'越大越好':'越小越好')+' | '+r.weights[m]+' |');
   });
   L.push('');
+  var hasRank = false;
+  state.fields.forEach(function(f){
+    if(f.type==='rank' && f.weight>0){
+      hasRank = true;
+      L.push('- 档位「'+f.label+'」：'+rankList(f).join(' < ')+'（越靠后分越高）');
+    }
+  });
+  if(hasRank) L.push('');
   if(r.hard_rules.length){
     L = L.concat(['**硬性约束**（不满足即淘汰）：','']);
     r.hard_rules.forEach(function(h){ L.push('- '+h.label+'：`'+h.field+'` '+h.op+' `'+String(h.value)+'`'); });
@@ -783,9 +918,13 @@ function markdown(r){
     L.push('| --- | --- | --- | --- | '+ms.map(function(){return '---';}).join(' | ')+' |');
     r.accepted.forEach(function(s,i){
       L.push('| '+(i+1)+' | '+s.name+' | ¥'+s.price+' | **'+fmt(s.total)+'** | '+
-        ms.map(function(m){return fmt(s.parts[m]);}).join(' | ')+' |');
+        ms.map(function(m){ return s.parts[m]==null ? '无数据' : fmt(s.parts[m]); }).join(' | ')+' |');
     });
     L = L.concat(['','**结论**：'+r.winner.name+' 胜出。','']);
+    var miss = missingNotes(r);
+    if(miss.length){
+      L = L.concat(['> '+miss.join('；')+'。缺数据不会被当成 0 分。','']);
+    }
   }
   if(r.rejected.length){
     L = L.concat(['## 淘汰清单（含逐条理由）','']);
@@ -818,7 +957,11 @@ function markdown(r){
 /* ---------- TOML 导出 ---------- */
 function tStr(s){ return '"'+String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/\n/g,'\\n')+'"'; }
 function tVal(v){
-  if(Array.isArray(v)) return '['+v.map(function(x){return typeof x==='number'?String(x):tStr(x);}).join(', ')+']';
+  if(v === null || v === undefined) return '""';  // TOML 没有 null：空串 = 这项没数据
+  if(Array.isArray(v)) return '['+v.map(function(x){
+    if(x === null || x === undefined) return '""';
+    return typeof x==='number'?String(x):tStr(x);
+  }).join(', ')+']';
   if(typeof v==='number') return String(v);
   return tStr(v);
 }
@@ -831,6 +974,11 @@ function toToml(){
   Object.keys(n.weights).forEach(function(m){ L.push(m+' = '+n.weights[m]); });
   L = L.concat(['','[directions]']);
   Object.keys(n.directions).forEach(function(m){ L.push(m+' = '+tStr(n.directions[m])); });
+  if(n.ranks){
+    L = L.concat(['','# 档位顺序：从低到高，候选填其中一个词']);
+    L.push('[ranks]');
+    Object.keys(n.ranks).forEach(function(k){ L.push(k+' = '+tVal(n.ranks[k])); });
+  }
   n.hard.forEach(function(h){
     L = L.concat(['','[[hard]]','field = '+tStr(h.field),'op = '+tStr(h.op),
       'value = '+tVal(h.value),'label = '+tStr(h.label)]);
@@ -907,11 +1055,20 @@ function sync(){
   state.budget = Number($('#fBudget').value)||0;
   state.priceWeight = Number($('#fPriceWeight').value)||0;
   Array.prototype.forEach.call(document.querySelectorAll('.f-label'),function(el){ state.fields[+el.dataset.i].label = el.value; });
-  Array.prototype.forEach.call(document.querySelectorAll('.f-type'),function(el){
-    var f = state.fields[+el.dataset.i]; f.type = el.value;
-    if(f.type==='text') f.weight = 0;
+  Array.prototype.forEach.call(document.querySelectorAll('.f-ranks'),function(el){
+    var f = state.fields[+el.dataset.i];
+    var list = parseRanks(el.value);
+    f.ranks = list.length ? list : ['低','中','高'];
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.f-dir'),function(el){ state.fields[+el.dataset.i].direction = el.value; });
+  Array.prototype.forEach.call(document.querySelectorAll('.f-type'),function(el){
+    var f = state.fields[+el.dataset.i];
+    f.type = el.value;
+    if(f.type === 'rank' && (!f.ranks || !f.ranks.length)) f.ranks = ['低','中','高'];
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.f-dir'),function(el){
+    var f = state.fields[+el.dataset.i];
+    f.direction = f.type==='rank' ? 'higher' : el.value;
+  });
   Array.prototype.forEach.call(document.querySelectorAll('.f-weight'),function(el){
     var f = state.fields[+el.dataset.i];
     f.weight = (f.type==='text') ? 0 : Number(el.value);
@@ -924,11 +1081,14 @@ function sync(){
   });
   Array.prototype.forEach.call(document.querySelectorAll('.h-label'),function(el){ state.hard[+el.dataset.i].label = el.value; });
   Array.prototype.forEach.call(document.querySelectorAll('.i-name'),function(el){ state.items[+el.dataset.i].name = el.value; });
-  Array.prototype.forEach.call(document.querySelectorAll('.i-price'),function(el){ state.items[+el.dataset.i].price = Number(el.value)||0; });
+  Array.prototype.forEach.call(document.querySelectorAll('.i-price'),function(el){
+    var n = Specpick.toNum(el.value);
+    state.items[+el.dataset.i].price = (n == null ? 0 : n);
+  });
   Array.prototype.forEach.call(document.querySelectorAll('.i-field'),function(el){
     var it = state.items[+el.dataset.i], key = el.dataset.key;
-    var f = state.fields.filter(function(x){return x.key===key;})[0];
-    it[key] = (f && f.type==='number') ? (Number(el.value)||0) : el.value;
+    // 数字项存原文（「8GB」），由引擎抽数字；空值就是「没数据」，不当 0 用
+    it[key] = el.value;
   });
   save();
 }
@@ -997,13 +1157,30 @@ $('#fileInput').addEventListener('change', function(){
 });
 $('#formCard').addEventListener('input', function(e){
   if(e.target.type==='range'){ var v=e.target.parentNode.querySelector('.wv'); if(v) v.textContent=e.target.value; }
+  if(e.target.classList.contains('i-field')){
+    var sp = e.target.parentNode.querySelector('.i-hint');
+    if(sp){
+      var raw = e.target.value;
+      sp.textContent = numHint(raw);
+      sp.className = 'i-hint' + ((raw !== '' && Specpick.toNum(raw) == null) ? ' warn' : '');
+    }
+  }
 });
 $('#formCard').addEventListener('change', function(e){
-  if(e.target.classList.contains('f-type') && e.target.value==='text'){
-    var row = e.target.closest('.row');
-    var r = row.querySelector('.f-weight'); if(r){ r.value=0; var v=row.querySelector('.wv'); if(v) v.textContent='0'; }
+  if(e.target.classList.contains('f-type')){
+    sync();
+    var f = state.fields[+e.target.dataset.i];
+    // 换类型时旧值不再适用（数字 ↔ 档位 不是一回事），清掉免得算错
+    state.items.forEach(function(it){ it[f.key] = (f.type === 'number' ? null : ''); });
+    if(f.type === 'rank' && !f.weight) f.weight = 3;
+    if(f.type === 'text') f.weight = 0;
+    renderForm(); save(); run(true);
+    return;
   }
-  if(e.target.classList.contains('f-price')) return;
+  if(e.target.classList.contains('f-ranks')){
+    sync(); renderForm(); save(); run(true);
+    return;
+  }
 });
 $('#formCard').addEventListener('click', function(e){
   var b = e.target.closest('button'); if(!b) return;
@@ -1025,8 +1202,8 @@ $('#btnAddField').onclick = function(){
   sync();
   var k = nextKey();
   state.fields.push({key:k,label:'新比较项',type:'number',direction:'higher',weight:3});
-  state.items.forEach(function(it){ it[k] = 3; });
-  renderForm(); save();
+  state.items.forEach(function(it){ it[k] = null; });
+  renderForm(); save(); run(true);
 };
 $('#btnAddHard').onclick = function(){
   sync();
@@ -1036,9 +1213,9 @@ $('#btnAddHard').onclick = function(){
 $('#btnAddItem').onclick = function(){
   sync();
   var it = {id:nextId(),name:'新候选',price:0};
-  state.fields.forEach(function(f){ it[f.key] = f.type==='number' ? 0 : ''; });
+  state.fields.forEach(function(f){ it[f.key] = (f.type==='number' ? null : ''); });
   state.items.push(it);
-  renderForm(); save();
+  renderForm(); save(); run(true);
 };
 /* ---------- 云端识图：截图 → 结构化候选（模型只做录入，不打分） ---------- */
 var CLOUD_CFG = {
@@ -1113,7 +1290,9 @@ async function visionRecognize(dataUrl){
   var modelId = picked ? picked.id : 'deepseek-v4.1-flash';
 
   var fieldSpec = state.fields.map(function(f){
-    return f.label + '（键 ' + f.key + '，' + (f.type === 'number' ? '数字' : '文字') + '）';
+    if(f.type === 'number') return f.label + '（键 ' + f.key + '，数字或带单位的原文，照抄）';
+    if(f.type === 'rank') return f.label + '（键 ' + f.key + '，只能填这几个词之一：' + rankList(f).join(' / ') + '）';
+    return f.label + '（键 ' + f.key + '，文字）';
   }).join('；') || '（无额外比较项）';
 
   var sys = '你是商品参数录入员。只把截图里看得见的商品读成 JSON。禁止评价、排序、推荐、推测、比价。读不到的字段填 null，绝不编造。只输出 JSON。';
@@ -1121,7 +1300,9 @@ async function visionRecognize(dataUrl){
     + '{"items":[{"name":"商品原文名称","price":1234, <其余字段>}],"notes":"读图时的口径说明"}\n'
     + '比较项：' + fieldSpec + '\n'
     + '规则：1) price 必须是卡片上明示的价格数字，广告图价与列表价不一致时取列表中正在售卖的那个，并在 notes 说明；'
-    + '2) name 保留品牌型号原文，不要改写；3) 图里没有的商品不要编；4) 只输出 JSON，不要解释。';
+    + '2) name 保留品牌型号原文，不要改写；3) 图里没有的商品不要编；'
+    + '4) 数字项照抄卡面上的写法，保留单位（如 "8GB GDDR7"、"28000 分"），不要自己换算或四舍五入；'
+    + '5) 只输出 JSON，不要解释。';
 
   var answer = '';
   for await (var chunk of cloud.llm.chat.completions.create({
@@ -1231,8 +1412,9 @@ function applyVision(payload, opts){
     var o = { id: newId(), name: String(it.name).slice(0, 80), price: Number(it.price) || 0 };
     state.fields.forEach(function(f){
       var v = it[f.key];
-      if(v === null || v === undefined || v === ''){ o[f.key] = (f.type === 'number' ? 0 : ''); return; }
-      o[f.key] = (f.type === 'number') ? (Number(v) || 0) : String(v);
+      // 模型给的常是「8GB」「28000 分」这种原文：原样留着，抽数字交给引擎
+      if(v === null || v === undefined || v === ''){ o[f.key] = (f.type === 'number' ? null : ''); return; }
+      o[f.key] = String(v);
     });
     added.push(o); pool.push(o);
   });

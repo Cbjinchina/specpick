@@ -6,12 +6,52 @@
 
 from __future__ import annotations
 
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 Number = int | float
+
+# 候选这一项可以是纯数字，也可以是从商品页抄下来的一整句原文。
+# 只认第一个数字，后面紧跟 万 / 千 / k / w 时换算成绝对量。
+_NUM_RE = re.compile(r"[-+]?\d[\d,]*(?:\.\d+)?")
+_SCALE = {"万": 10000, "w": 10000, "W": 10000, "千": 1000, "k": 1000, "K": 1000}
+
+
+def to_num(value: Any, ranks: list[str] | None = None) -> float | None:
+    """把候选填的值变成一个能比大小的数字；变不出来就返回 None（= 这项没数据）。
+
+    - 纯数字：原样返回
+    - 带单位的原文：抽第一个数字，「8GB」→ 8，「约 28,000 分」→ 28000，「1.2万」→ 12000
+    - 档位：返回该词在顺序表里的位次（0 起），「高」在 低/中/高 里 = 2
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    if not text:
+        return None
+    if ranks:
+        flat = re.sub(r"\s+", "", text).lower()
+        for i, rk in enumerate(ranks):
+            key = re.sub(r"\s+", "", str(rk)).lower()
+            if key and (key == flat or key in flat):
+                return float(i)
+        return None  # 定义了档位就只认档位词，不能把「4」当第 5 档
+    m = _NUM_RE.search(text)
+    if not m:
+        return None
+    try:
+        num = float(m.group(0).replace(",", ""))
+    except ValueError:
+        return None
+    tail = text[m.end():m.end() + 1]
+    if tail in _SCALE:
+        num *= _SCALE[tail]
+    return num
 
 
 @dataclass
@@ -110,8 +150,19 @@ def validate_case(needs: dict[str, Any], items: list[dict[str, Any]]) -> list[st
     return errors
 
 
-def _compare(actual: Any, op: str, expected: Any) -> bool:
-    return OPS[op](actual, expected)
+def _compare(actual: Any, op: str, expected: Any, ranks: list[str] | None = None) -> bool | None:
+    """返回 True/False；返回 None 表示这一项的值里读不出可比的数字。"""
+    if op in ("in", "not_in"):
+        return OPS[op](actual, expected)
+    a = to_num(actual, ranks)
+    b = to_num(expected)
+    if op in ("==", "!="):
+        if a is not None and b is not None:
+            return OPS[op](a, b)
+        return OPS[op](str(actual).strip(), str(expected).strip())
+    if a is None or b is None:
+        return None
+    return OPS[op](a, b)
 
 
 def _op_le(a, b):
@@ -159,24 +210,46 @@ OPS = {
 
 
 def hard_reasons(item: dict[str, Any], needs: dict[str, Any]) -> list[str]:
-    """逐条记录淘汰理由，不静默丢弃任何一个候选。"""
+    """逐条记录淘汰理由，不静默丢弃任何一个候选。
+
+    值可以是「8GB」这种原文，比较时先抽数字；抽不出数字也不当作失败，
+    而是明说「这项没法验证」——不能因为格式问题把候选冤杀掉。
+    """
     reasons: list[str] = []
+    ranks = needs.get("ranks", {})
     budget = needs["budget"]
-    if item["price"] > budget:
+    price = to_num(item["price"])
+    if price is not None and budget is not None and price > float(budget):
         reasons.append(f"价格 ¥{item['price']} 超出预算 ¥{budget}")
     for rule in needs.get("hard", []):
         f, op, expected, label = rule["field"], rule["op"], rule["value"], rule["label"]
         actual = item.get(f)
         if actual is None:
             reasons.append(f"缺少 {f} 数据，无法验证「{label}」")
-        elif not _compare(actual, op, expected):
+            continue
+        ok = _compare(actual, op, expected, ranks.get(f))
+        if ok is None:
+            reasons.append(f"「{label}」这一项填的是「{actual}」，读不出数字，无法验证")
+        elif not ok:
             reasons.append(f"{label}（实际 {actual}，要求 {op} {expected}）")
     return reasons
 
 
-def _bounds(items: list[dict[str, Any]], metric: str) -> tuple[float, float]:
-    values = [float(it[metric]) for it in items]
-    return min(values), max(values)
+def _bounds(
+    item_values: list[float | None],
+) -> tuple[float, float] | None:
+    """只用真正有数据的候选定取值范围。
+
+    返回 None 表示这一项比不了，对所有人都不计分：
+    - 一件都没数据；
+    - 多件候选里只有一件有数据 —— 只有一个点，定不出「高低」，给了它满分等于白送。
+    """
+    known = [v for v in item_values if v is not None]
+    if not known:
+        return None
+    if len(known) < 2 and len(item_values) > 1:
+        return None
+    return min(known), max(known)
 
 
 def _norm(value: Number, low: float, high: float, direction: str) -> float:
@@ -190,20 +263,45 @@ def score_items(
     items: list[dict[str, Any]],
     weights: dict[str, Number],
     directions: dict[str, str],
+    ranks: dict[str, list[str]] | None = None,
 ) -> list[Scored]:
-    bounds = {m: _bounds(items, m) for m in weights}
+    """按权重打分。
+
+    缺数据的候选不会被打成 0 分：它在剩余项上按权重等比折算总分，
+    也就是「这项不知道，就只按我知道的评」。
+    """
+    ranks = ranks or {}
+    metrics = list(weights)
+    values = {m: [to_num(it.get(m), ranks.get(m)) for it in items] for m in metrics}
+    bounds = {m: _bounds(values[m]) for m in metrics}
+    # 比不了的项（没数据 / 只有一个人有）对整个评分体系都不算权重，否则会把别的项放大
+    total_w = sum(float(weights[m]) for m in metrics if bounds[m] is not None)
     scored: list[Scored] = []
-    for item in items:
-        parts: dict[str, float] = {}
-        for metric, weight in weights.items():
-            low, high = bounds[metric]
-            parts[metric] = round(float(weight) * _norm(item[metric], low, high, directions[metric]), 4)
+    for idx, item in enumerate(items):
+        parts: dict[str, float | None] = {}
+        avail = 0.0
+        for metric in metrics:
+            weight = float(weights[metric])
+            b = bounds[metric]
+            v = values[metric][idx]
+            if b is None or v is None:
+                parts[metric] = None
+                continue
+            parts[metric] = round(weight * _norm(v, b[0], b[1], directions[metric]), 4)
+            avail += weight
+        known = sum(p for p in parts.values() if p is not None)
+        if avail <= 0:
+            total = 0.0
+        elif avail < total_w:
+            total = round(known * total_w / avail, 4)
+        else:
+            total = round(known, 4)
         scored.append(
             Scored(
                 item_id=str(item["id"]),
                 name=str(item["name"]),
                 price=item["price"],
-                total=round(sum(parts.values()), 4),
+                total=total,
                 parts=parts,
             )
         )
@@ -217,23 +315,32 @@ def counterfactual(
     runner_up: Scored,
     weights: dict[str, Number],
     directions: dict[str, str],
+    ranks: dict[str, list[str]] | None = None,
 ) -> list[Move]:
     """解析求解：只改一个字段，最少要改到多少才能反超。"""
+    ranks = ranks or {}
     gap = winner.total - runner_up.total
     if gap <= 0:
         return []
     by_id = {str(it["id"]): it for it in items}
     challenger = by_id[runner_up.item_id]
-    bounds = {m: _bounds(items, m) for m in weights}
+    bounds = {m: _bounds([to_num(it.get(m), ranks.get(m)) for it in items]) for m in weights}
     moves: list[Move] = []
     for metric, weight in weights.items():
-        if float(weight) <= 0:
+        w = float(weight)
+        if w <= 0:
             continue
-        low, high = bounds[metric]
+        b = bounds[metric]
+        if b is None:
+            continue
+        low, high = b
         if high == low:
             continue
-        needed = gap / float(weight)  # 归一化分数需要提高的量
-        current_norm = _norm(challenger[metric], low, high, directions[metric])
+        current = to_num(challenger.get(metric), ranks.get(metric))
+        if current is None:
+            continue  # 这件候选本来就没填，谈不上「改到多少」
+        needed = gap / w  # 归一化分数需要提高的量
+        current_norm = _norm(current, low, high, directions[metric])
         target_norm = current_norm + needed
         if target_norm > 1.0 + 1e-4:
             continue  # 单改这个字段也追不上
@@ -242,11 +349,11 @@ def counterfactual(
         else:
             target = high - target_norm * (high - low)
         target = max(low, min(high, target))  # 不外推到样本取值范围之外
-        delta = abs(target - float(challenger[metric]))
+        delta = abs(target - current)
         moves.append(
             Move(
                 metric=metric,
-                current=float(challenger[metric]),
+                current=current,
                 target=round(target, 2),
                 relative=round(delta / (high - low), 4),
             )
@@ -259,9 +366,10 @@ def sensitivity(
     items: list[dict[str, Any]],
     weights: dict[str, Number],
     directions: dict[str, str],
+    ranks: dict[str, list[str]] | None = None,
 ) -> dict[str, Any]:
     """每个权重 ±25%，看第一名会不会换人。"""
-    baseline = score_items(items, weights, directions)[0].item_id
+    baseline = score_items(items, weights, directions, ranks)[0].item_id
     trials = 0
     flips: list[str] = []
     for metric, original in weights.items():
@@ -269,7 +377,7 @@ def sensitivity(
             perturbed = dict(weights)
             perturbed[metric] = float(original) * factor
             trials += 1
-            top = score_items(items, perturbed, directions)[0].item_id
+            top = score_items(items, perturbed, directions, ranks)[0].item_id
             if top != baseline:
                 flips.append(f"{metric} ×{factor}")
     if not flips:
@@ -304,12 +412,20 @@ def decide(case_dir: Path) -> tuple[Result, list[str]]:
         else:
             eligible.append(item)
 
-    accepted = score_items(eligible, needs["weights"], needs["directions"]) if eligible else []
+    accepted = (
+        score_items(eligible, needs["weights"], needs["directions"], needs.get("ranks"))
+        if eligible else []
+    )
     moves: list[Move] = []
     sens: dict[str, Any] = {}
     if len(accepted) >= 2:
-        moves = counterfactual(eligible, accepted[0], accepted[1], needs["weights"], needs["directions"])
-        sens = sensitivity(eligible, needs["weights"], needs["directions"])
+        moves = counterfactual(
+            eligible, accepted[0], accepted[1],
+            needs["weights"], needs["directions"], needs.get("ranks"),
+        )
+        sens = sensitivity(
+            eligible, needs["weights"], needs["directions"], needs.get("ranks"),
+        )
 
     return (
         Result(

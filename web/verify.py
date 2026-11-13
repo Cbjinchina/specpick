@@ -107,6 +107,30 @@ def synthetic() -> list[tuple[str, dict, list[dict]]]:
          {"id": "B", "name": "乙", "price": 20}],
     ))
 
+    out.append((
+        "mixed_text_numbers",
+        {"title": "从原文里抽数字", "budget": 100,
+         "weights": {"price": 1, "perf": 3},
+         "directions": {"price": "lower", "perf": "higher"},
+         "hard": [{"field": "vram", "op": ">=", "value": 8, "label": "显存至少 8G"}]},
+        [{"id": "A", "name": "甲", "price": 50, "perf": "跑分 28,000 分", "vram": "8GB"},
+         {"id": "B", "name": "乙", "price": 40, "perf": "约 1.2万", "vram": "6GB"},
+         {"id": "C", "name": "丙", "price": 60, "perf": None, "vram": "12GB"},
+         {"id": "D", "name": "丁", "price": 70, "perf": "没写", "vram": "不知道"}],
+    ))
+
+    out.append((
+        "rank_tiers",
+        {"title": "档位也能打分", "budget": 100,
+         "weights": {"price": 1, "tier": 3},
+         "directions": {"price": "lower", "tier": "higher"},
+         "ranks": {"tier": ["核显", "独显", "独显Ti"]}},
+        [{"id": "A", "name": "甲", "price": 50, "tier": "核显"},
+         {"id": "B", "name": "乙", "price": 50, "tier": "独显Ti"},
+         {"id": "C", "name": "丙", "price": 60, "tier": "独显"},
+         {"id": "D", "name": "丁", "price": 70, "tier": ""}],
+    ))
+
     return out
 
 
@@ -130,13 +154,14 @@ def decide_data(needs: dict, items: list[dict], case_id: str) -> tuple[dict, lis
         else:
             eligible.append(item)
 
-    accepted = score_items(eligible, needs["weights"], needs["directions"]) if eligible else []
+    ranks = needs.get("ranks")
+    accepted = score_items(eligible, needs["weights"], needs["directions"], ranks) if eligible else []
     moves: list = []
     sens: dict = {}
     if len(accepted) >= 2:
         moves = counterfactual(eligible, accepted[0], accepted[1],
-                               needs["weights"], needs["directions"])
-        sens = sensitivity(eligible, needs["weights"], needs["directions"])
+                               needs["weights"], needs["directions"], ranks)
+        sens = sensitivity(eligible, needs["weights"], needs["directions"], ranks)
     return {
         "case_id": case_id,
         "accepted": accepted,

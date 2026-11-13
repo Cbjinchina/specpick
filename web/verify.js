@@ -44,17 +44,19 @@ const results = payload.map(function (c) {
  */
 function buildFromState(s) {
   const needs = { title: s.title, scene: s.scene, budget: s.budget,
-                  weights: {}, directions: {}, hard: [] };
+                  weights: {}, directions: {}, hard: [], ranks: {} };
   if (s.priceWeight > 0) {
     needs.weights.price = s.priceWeight;
     needs.directions.price = 'lower';
   }
   s.fields.forEach(function (f) {
-    if (f.weight > 0 && f.type === 'number') {
+    if (f.type === 'rank' && f.ranks && f.ranks.length) needs.ranks[f.key] = f.ranks;
+    if (f.weight > 0 && (f.type === 'number' || f.type === 'rank')) {
       needs.weights[f.key] = f.weight;
-      needs.directions[f.key] = f.direction;
+      needs.directions[f.key] = f.type === 'rank' ? 'higher' : f.direction;
     }
   });
+  if (!Object.keys(needs.ranks).length) delete needs.ranks;
   s.hard.forEach(function (h) {
     needs.hard.push({ field: h.field, op: h.op, value: h.value, label: h.label });
   });

@@ -57,7 +57,9 @@ def render_decision(r: Result) -> str:
         sep = "| --- | --- | --- | --- | " + " | ".join("---" for _ in metrics) + " |"
         lines += [header, sep]
         for i, s in enumerate(r.accepted, 1):
-            cells = " | ".join(f"{s.parts[m]:.2f}" for m in metrics)
+            cells = " | ".join(
+                "无数据" if s.parts.get(m) is None else f"{s.parts[m]:.2f}" for m in metrics
+            )
             lines.append(f"| {i} | {s.name} | ¥{s.price} | **{s.total:.2f}** | {cells} |")
         lines += ["", f"**结论**：{r.winner.name} 胜出。", ""]
 
