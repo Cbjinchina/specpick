@@ -92,6 +92,10 @@ select.pick{max-width:100%;font-size:15px}
 input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z-index:3;
   border:0;padding:0;margin:0;min-height:0;background:transparent;cursor:pointer;
   -webkit-appearance:none;appearance:none;font-size:16px}
+.mirror{max-width:1080px;margin:0 auto 14px;padding:12px 14px;border-radius:12px;
+  background:#FAEEDA;border:1px solid #BA7517;color:#412402;font-size:14px;line-height:1.55}
+.mirror b{color:#633806}
+.mirror a{color:#854F0B;font-weight:700;text-decoration:underline;word-break:break-all}
 .guide{max-width:1080px;margin:0 auto 14px;padding:16px 18px;background:var(--accent-bg);
   border:1px solid var(--accent);border-radius:14px}
 .guide-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
@@ -152,8 +156,15 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 08:55（新增买后回访）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:15（修复镜像缺 paste.js）</p>
 </header>
+
+<div id="mirrorBar" class="mirror" style="display:none">
+  <b>你打开的是只读镜像（GitHub Pages），这张页面不能识图。</b><br>
+  想用「粘截图 → 自动填表」，请换这个地址：
+  <a href="https://specpick.app.workbuddy.host/?sharecode=W66PR2KXCD">specpick.app.workbuddy.host/?sharecode=W66PR2KXCD</a><br>
+  如果你只是想手动填表做对比，这个页面也能正常用。
+</div>
 
 <div id="guide" class="guide">
   <div class="guide-head">
@@ -1660,6 +1671,10 @@ async function runVision(source){
 /* 识图卡：只在应用域名下出现；即使 SDK 没就绪也照常显示，
    否则卡片被隐藏、按钮消失，用户只会看到「点了没反应」。 */
 var ON_APP_ORIGIN = /(^|\.)app\.workbuddy\.host$/i.test(location.hostname);
+if(!ON_APP_ORIGIN){
+  // 镜像（GitHub Pages / 本地打开）：确认告诉用户识图不可用、去哪用，别让人以为按钮丢了
+  $('#mirrorBar').style.display = '';
+}
 if(ON_APP_ORIGIN){
   $('#visionCard').style.display = '';
 
@@ -1725,10 +1740,31 @@ $('#btnPasteClear').onclick = function(){
   $('#pasteText').value = ''; $('#pasteNote').textContent = '';
 };
 $('#btnPasteGo').onclick = function(){
+  var note = $('#pasteNote');
+  if(typeof PasteParser !== 'undefined'){ pasteFill(); return; }
+
+  // 组件没加载（镜像漏拷 paste.js、临时断网、缓存不全）：先自动补一次，别只丢一句话给用户
+  note.textContent = '正在补加载解析组件……';
+  var s = document.createElement('script');
+  s.src = 'paste.js';
+  s.onload = function(){
+    if(typeof PasteParser === 'undefined'){
+      note.textContent = '解析组件加载了但没生效，刷新一次页面；还不行就用表格手填。';
+      return;
+    }
+    pasteFill();
+  };
+  s.onerror = function(){
+    note.textContent = '这个地址缺少 paste.js，粘文字用不了。请用官方链接（能识图），或在下面表格里手填。';
+  };
+  document.head.appendChild(s);
+};
+
+function pasteFill(){
   var txt = $('#pasteText').value;
   var note = $('#pasteNote');
   if(!txt || !txt.trim()){ note.textContent = '先把截图里的文字粘进来。'; return; }
-  if(typeof PasteParser === 'undefined'){ note.textContent = '解析器没加载，刷新一下页面。'; return; }
+  if(typeof PasteParser === 'undefined'){ note.textContent = '解析组件没就绪，刷新一下页面。'; return; }
 
   var res = PasteParser.parse(txt, state.fields);
   if(!res.items.length){
