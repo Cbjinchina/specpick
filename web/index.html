@@ -160,7 +160,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:22（首屏可直接传图）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:38（识别后给明确建议）</p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -1173,15 +1173,25 @@ function applyVision(payload){
 
   renderForm(); save(); run(true);
 
-  var blanks = 0;
+  var blanks = 0, filled = 0;
   state.items.forEach(function(it){
-    state.fields.forEach(function(f){ if(f.type === 'number' && !it[f.key]) blanks++; });
+    state.fields.forEach(function(f){
+      if(f.type === 'number' && !it[f.key]) blanks++;
+      if(it[f.key]) filled++;
+    });
   });
   var msg = '识别到 ' + state.items.length + ' 件';
   if(total > state.items.length) msg += '（去重后，原有 ' + total + ' 条）';
-  if(blanks) msg += '；有 ' + blanks + ' 个数字是 0（图里没读到），请补上再采信报告';
-  msg += '。识别结果可能混进整机、套装，删掉不要的即可';
-  $('#visionNote').innerHTML = msg + '。 <button class="mini" id="btnUndoVision">撤销</button>';
+  msg += '。';
+  if(blanks) msg += '有 ' + blanks + ' 个数字是 0（图里没读到），请补上再采信报告。';
+  if(state.items.length < 2) msg += '<b>只读到 1 件，比不出胜负</b>：把列表里 2 件以上一起截进来，或用「+ 添加一个候选」手动再加一件。';
+  if(!filled && state.fields.length){
+    msg += '<b>当前比较项和图里的参数对不上</b>——现在比的是「'
+      + state.fields.slice(0, 4).map(function(f){ return f.label; }).join('、')
+      + '」。先到「0 先选一个例子」里挑一个同类案例（看显卡就选显卡、看笔记本就选笔记本），再传这张图，参数才装得进去。';
+  }
+  if(blanks || state.items.length < 2 || !filled) msg += '识别结果可能混进整机、套装，删掉不要的即可。';
+  $('#visionNote').innerHTML = msg + ' <button class="mini" id="btnUndoVision">撤销</button>';
   $('#btnUndoVision').onclick = function(){
     state.items = JSON.parse(backup);
     renderForm(); save(); run(true);
