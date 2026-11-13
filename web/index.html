@@ -109,6 +109,13 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 .guide ul.plain{font-size:13px;margin:8px 0 0}
 @keyframes flash{0%,100%{box-shadow:none}30%{box-shadow:0 0 0 3px var(--accent)}}
 .flash{animation:flash 1.3s ease 2}
+.rvsum{display:flex;gap:8px;margin:12px 0 0;flex-wrap:wrap}
+.rvsum>div{flex:1 1 90px;background:var(--accent-bg);border-radius:10px;padding:8px 10px;text-align:center}
+.rvsum b{display:block;font-size:18px;line-height:1.3}
+.rvsum span{font-size:11px;color:var(--muted)}
+.rvlist{margin-top:10px}
+.rvrow{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px}
+.rvrow .hd{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:3px}
 /* 分步指引：目标挖洞高亮 + 编号气泡 + 底部说明卡 */
 .coach{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:80;
   max-width:520px;margin:0 auto;background:var(--card);border:1px solid var(--accent);border-radius:14px;
@@ -145,7 +152,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-12 23:25（粘图直接读 / 拖图也行）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 08:55（新增买后回访）</p>
 </header>
 
 <div id="guide" class="guide">
@@ -172,7 +179,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       <li><strong>能丢张截图让 AI 自动对比吗？</strong>能识别，但只识别「名称 + 参数 + 价格」：点「拍照 / 从相册选图」，或在电脑上直接 <b>Ctrl+V</b> 粘贴截图。模型不打分、不排序、不推荐，数字仍要你核对，结论由纯规则算。</li>
       <li><strong>填的东西会上传吗？</strong>你手填的表单只存在这台设备的浏览器里，刷新自动恢复，不上传。只有你主动选的那张截图会发给看图模型识别，不保存、不建商品库。</li>
       <li><strong>换手机怎么办？</strong>点「导出备份」存一个 .json，新设备点「导入备份」。</li>
-      <li><strong>手机上报告在哪？</strong>在表单下方，往下划就能看到。</li>
+      <li><strong>买完以后，能回头看当时判断准不准吗？</strong>能。报告下面那张「5 买后回访」记三条：会不会再买、每周真用几次、一句教训。攒几条会自动算出「重来还会买」的比例，并把基本没用的东西点出来；命令行版用 <code>python -m specpick review</code> 得到同一份复盘。</li>
+      <li><strong>手机上报告在哪？</strong>在表单下方，往下划就能看到；回访卡就在报告下面。</li>
     </ul>
   </details>
 </div>
@@ -271,6 +279,31 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     <div class="card" id="reportCard">
       <h2 style="margin-bottom:6px">裁决报告</h2>
       <div id="report"><p class="small">填好左边，点「生成裁决报告」就能看到：谁该赢、为什么另一个输了、要改哪个条件才会翻盘。</p></div>
+    </div>
+
+    <div class="card" id="reviewCard">
+      <h2><span class="n">5</span> 买后回访：过几个月回来记一笔</h2>
+      <div class="tip">
+        决策当时写得再清楚，也要用上一阵才知道准不准。买回来之后回来填三件事：<b>会不会再买</b>、<b>每周真用几次</b>、<b>一句教训</b>。<br>
+        攒够几条，下面会算出「重来还会买」的比例，并把买回来基本没用的东西点出来 &mdash;&mdash; 下次同类购买，那些权重就该下调。
+        记录只存在本机，会跟着「导出备份」一起走。
+      </div>
+      <div class="two">
+        <div><label class="f">买了哪一件</label><select id="rvPick"></select></div>
+        <div><label class="f">会不会再买</label><select id="rvRebuy">
+          <option value="1">会，再买还是它</option>
+          <option value="0">不会</option>
+        </select></div>
+      </div>
+      <div class="mb"><label class="f">每周真实用几次（几乎没用写 0）</label>
+        <input id="rvUse" type="number" inputmode="decimal" min="0" step="0.5" placeholder="例如 3"></div>
+      <div class="mb"><label class="f">一句教训（会写进复盘）</label>
+        <textarea id="rvLesson" style="min-height:64px" placeholder="例如：被「功能多」带偏了，实际只用来照明"></textarea></div>
+      <div class="toolbar">
+        <button class="mini" id="btnRvSave">存下这次回访</button>
+        <button class="mini" id="btnRvMd">复制复盘 Markdown</button>
+      </div>
+      <div id="rvOut"></div>
     </div>
   </div>
 </div>
@@ -434,6 +467,10 @@ function normalize(s){
   s.priceWeight = Number(s.priceWeight)||0;
   s.title = String(s.title||''); s.scene = String(s.scene||'');
   s.caseId = String(s.caseId||'custom');
+  s.records = (s.records||[]).map(function(r){
+    return { name:String(r.name||''), rebuy:!!r.rebuy, use:Number(r.use)||0,
+             lesson:String(r.lesson||''), on:String(r.on||'') };
+  }).filter(function(r){ return r.name; });
   return s;
 }
 
@@ -512,8 +549,113 @@ function renderForm(){
   $('#fPriceWeight').innerHTML = [0,1,2,3,4,5].map(function(n){
     return '<option value="'+n+'"'+(state.priceWeight===n?' selected':'')+'>'+n+'</option>';
   }).join('');
-  renderFields(); renderHards(); renderItems();
+  renderFields(); renderHards(); renderItems(); renderReview();
 }
+
+/* ---------- 买后回访：决策之后的那一半 ---------- */
+function todayStr(){
+  var d = new Date(), p = function(n){ return (n<10?'0':'')+n; };
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function rvAvg(list){
+  if(!list.length) return 0;
+  var s = 0;
+  list.forEach(function(r){ s += Number(r.use)||0; });
+  return Math.round(s / list.length * 10) / 10;
+}
+function renderReview(){
+  if(!state) return;
+  var items = state.items || [];
+  var sel = $('#rvPick'), keep = sel.value;
+  var opts = items.map(function(it){
+    var nm = String(it.name||'').trim() || ('候选 '+it.id);
+    return '<option value="'+esc(nm)+'">'+esc(nm)+'</option>';
+  }).join('');
+  sel.innerHTML = opts || '<option value="">（先在左边「4 正在看的几个候选」填一个）</option>';
+  var stillThere = items.some(function(it){ return String(it.name||'').trim() === keep; });
+  if(keep && stillThere) sel.value = keep;
+
+  var list = state.records || [], out = $('#rvOut');
+  if(!list.length){
+    out.innerHTML = '<div class="tip" style="margin:12px 0 0">还没有回访记录。买回来用上一阵，再回来填第一条就行 —— 一条也算，它会写进复盘。</div>';
+    return;
+  }
+  var yes = list.filter(function(r){ return r.rebuy; }).length;
+  var pct = Math.round(yes / list.length * 100);
+  var low = list.filter(function(r){ return (Number(r.use)||0) <= 1; });
+
+  var rows = list.map(function(r, i){
+    return '<div class="rvrow">'+
+      '<div class="hd"><span>'+esc(r.name)+'</span>'+
+        '<button class="del" data-rvdel="'+i+'">删除</button></div>'+
+      '<div class="small">'+(r.rebuy?'会再买':'不再买')+' · 每周 '+(Number(r.use)||0)+' 次'+
+        (r.on?' · '+esc(r.on):'')+'</div>'+
+      (r.lesson?'<div class="small" style="margin-top:4px;color:var(--text)">教训：'+esc(r.lesson)+'</div>':'')+
+    '</div>';
+  }).join('');
+
+  out.innerHTML =
+    '<div class="rvsum">'+
+      '<div><b>'+list.length+'</b><span>已回访</span></div>'+
+      '<div><b>'+pct+'%</b><span>重来还会买</span></div>'+
+      '<div><b>'+rvAvg(list)+'</b><span>平均每周使用</span></div>'+
+    '</div>'+
+    '<div class="rvlist">'+rows+'</div>'+
+    (low.length
+      ? '<div class="tip" style="margin:10px 0 0">低频提醒：'+
+        low.map(function(r){ return esc(r.name)+'（每周 '+(Number(r.use)||0)+' 次）'; }).join('、')+
+        ' —— 下次同类购买，这类「看着有用」的东西权重该下调。</div>'
+      : '');
+}
+function reviewMarkdown(){
+  var list = state.records || [];
+  if(!list.length) return '还没有回访记录。';
+  var yes = list.filter(function(r){ return r.rebuy; }).length;
+  var lines = ['# 买后回测', '', '> 决策当时写得再清楚，也要过几个月才知道判断准不准。', '',
+    '| 指标 | 值 |', '| --- | --- |',
+    '| 已回访决策 | '+list.length+' |',
+    '| 「重来还会买」比例 | '+Math.round(yes / list.length * 100)+'% |',
+    '| 平均每周使用次数 | '+rvAvg(list)+' |', '', '## 逐条复盘', ''];
+  list.forEach(function(r){
+    lines.push('### '+r.name+(r.on?' · '+r.on:''), '');
+    lines.push('- 会不会再买：'+(r.rebuy?'会':'不会'));
+    lines.push('- 每周使用：'+(Number(r.use)||0)+' 次');
+    if(r.lesson) lines.push('- 教训：'+r.lesson);
+    lines.push('');
+  });
+  var low = list.filter(function(r){ return (Number(r.use)||0) <= 1; });
+  if(low.length){
+    lines.push('## 低频提醒', '', '以下东西买回来基本没用，下次同类购买的权重应该下调：', '');
+    low.forEach(function(r){ lines.push('- '+r.name+'（每周 '+(Number(r.use)||0)+' 次）'); });
+  }
+  return lines.join('\n');
+}
+$('#btnRvSave').onclick = function(){
+  var name = $('#rvPick').value;
+  if(!name){ toast('先在左边「4 正在看的几个候选」里填一件，再回来记'); return; }
+  var raw = $('#rvUse').value;
+  if(raw === ''){ toast('「每周用几次」要填个数，几乎没用就写 0'); return; }
+  state.records.push({
+    name:name,
+    rebuy:$('#rvRebuy').value === '1',
+    use:Math.max(0, Number(raw)||0),
+    lesson:$('#rvLesson').value.trim(),
+    on:todayStr()
+  });
+  save();
+  $('#rvUse').value = ''; $('#rvLesson').value = '';
+  renderReview();
+  toast('已存下这次回访');
+};
+$('#btnRvMd').onclick = function(){ copy(reviewMarkdown()); };
+$('#rvOut').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('[data-rvdel]') : null;
+  if(!b) return;
+  var i = Number(b.getAttribute('data-rvdel'));
+  if(!(i >= 0)) return;
+  state.records.splice(i, 1);
+  save(); renderReview(); toast('已删除这条回访');
+});
 
 /* ---------- 表单 → 引擎输入 ---------- */
 function buildCase(){
@@ -686,10 +828,50 @@ function toToml(){
 }
 
 function copy(text){
+  function manual(){
+    // 非安全上下文（http / 本地文件）没有 navigator.clipboard，得给一条真能复制的路
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;background:rgba(10,18,13,.5);z-index:120;'+
+      'display:flex;align-items:center;justify-content:center;padding:16px';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:var(--card);border:1px solid var(--line);border-radius:12px;'+
+      'padding:12px;width:100%;max-width:520px';
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'width:100%;height:240px;font-size:13px;font-family:ui-monospace,monospace';
+    var bar = document.createElement('div');
+    bar.className = 'toolbar';
+    var b1 = document.createElement('button');
+    b1.className = 'mini'; b1.textContent = '全选';
+    b1.onclick = function(){ ta.focus(); ta.select(); };
+    var b2 = document.createElement('button');
+    b2.className = 'mini'; b2.textContent = '关闭';
+    b2.onclick = function(){ if(d.parentNode) document.body.removeChild(d); };
+    bar.appendChild(b1); bar.appendChild(b2);
+    box.appendChild(ta); box.appendChild(bar); d.appendChild(box);
+    document.body.appendChild(d);
+    ta.focus(); ta.select();
+    toast('浏览器不允许自动复制，已帮你全选，按 Ctrl+C / 长按复制');
+  }
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(function(){ toast('已复制'); },
-      function(){ toast('复制失败，请长按文本框手动复制'); });
-  }else{ toast('请长按文本框手动复制'); }
+    navigator.clipboard.writeText(text).then(function(){ toast('已复制'); }, function(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta); ta.select();
+      var ok = false;
+      try{ ok = document.execCommand('copy'); }catch(e){}
+      document.body.removeChild(ta);
+      if(ok) toast('已复制'); else manual();
+    });
+  }else{
+    var t2 = document.createElement('textarea');
+    t2.value = text; t2.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(t2); t2.select();
+    var ok2 = false;
+    try{ ok2 = document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(t2);
+    if(ok2) toast('已复制'); else manual();
+  }
 }
 var toastTimer = null;
 function toast(msg){
@@ -754,7 +936,10 @@ function nextId(){
   return 'N'+(state.items.length+1);
 }
 function setCase(id){
+  // 回访记录属于「我这个人的判断档案」，换例子不该把它清掉
+  var recs = (state && state.records) ? state.records : [];
   state = normalize(JSON.parse(JSON.stringify(id==='blank' ? blank() : CASES[id].data)));
+  state.records = recs;
   $('#caseSel').value = id;
   $('#caseDesc').textContent = id==='blank' ? '从最简单的两件商品开始，随便改' : CASES[id].desc;
   renderForm(); save(); run(true);
@@ -781,7 +966,10 @@ $('#fileInput').addEventListener('change', function(){
       var j = JSON.parse(reader.result);
       var d = j.data || j;
       if(!d || !Array.isArray(d.fields) || !Array.isArray(d.items)) throw new Error('格式不对');
+      var mine = (state && state.records) ? state.records : [];
       state = normalize(d);
+      // 旧备份里没有回访记录：别把本机自己的判断档案清空
+      if(!(state.records && state.records.length) && mine.length) state.records = mine;
       $('#caseSel').value = '';
       $('#caseDesc').textContent = '已导入本机备份';
       renderForm(); save(); run(true);
