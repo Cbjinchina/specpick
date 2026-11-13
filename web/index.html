@@ -62,6 +62,10 @@ button.del{color:var(--warn);background:transparent;border-color:transparent;pad
 .item .fields label{font-size:11px;color:var(--muted);display:block;margin-bottom:2px}
 .item .fields input{min-height:38px;font-size:15px;padding:7px 8px}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.jump{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:10px;
+  background:var(--accent);color:#fff;font-weight:700;font-size:15px;line-height:1.2;
+  cursor:pointer;border:1px solid var(--accent);text-align:center}
+.jump:active{opacity:.85}
 .err{color:var(--warn);background:var(--warn-bg);border-radius:9px;padding:10px 12px;font-size:13px;margin-bottom:10px}
 .hero{background:var(--accent-bg);border:1px solid var(--accent);border-radius:14px;padding:18px;margin-bottom:14px}
 .hero .k{font-size:12px;color:var(--muted);margin-bottom:6px}
@@ -156,7 +160,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:15（修复镜像缺 paste.js）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:22（首屏可直接传图）</p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -180,6 +184,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     <div class="step"><b>3</b><span>点绿色的<strong>「生成裁决报告」</strong>，右边出结果</span></div>
   </div>
   <div class="toolbar">
+    <label class="jump" for="visionFile" id="btnJumpVision">有截图？点这里传图，自动填表</label>
     <button class="mini" id="btnDemo">开始一步步指引（会框出该点的地方）</button>
   </div>
   <details>
@@ -1222,6 +1227,7 @@ var ON_APP_ORIGIN = /(^|\.)app\.workbuddy\.host$/i.test(location.hostname);
 if(!ON_APP_ORIGIN){
   // 镜像（GitHub Pages / 本地打开）：确认告诉用户识图不可用、去哪用，别让人以为按钮丢了
   $('#mirrorBar').style.display = '';
+  $('#btnJumpVision').style.display = 'none';
 }
 if(ON_APP_ORIGIN){
   $('#visionCard').style.display = '';
@@ -1246,6 +1252,9 @@ if(ON_APP_ORIGIN){
       this.value = ''; return;
     }
     var url = URL.createObjectURL(f);
+    // 首屏那个「传图」按钮也会走到这里：选完图得让用户看见进度，别停在首屏以为没反应
+    if(window.innerWidth < 920) $('#visionCard').scrollIntoView({behavior:'smooth', block:'start'});
+    vNote('正在读这张图，大约 10–30 秒……');
     runVision(imgToDataUrl(url, 2000)).then(function(){ URL.revokeObjectURL(url); });
     this.value = '';
   });
