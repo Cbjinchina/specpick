@@ -14,8 +14,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 INDEX = HERE / "index.html"
-SCRIPTS = [("paste.js", HERE / "paste.js"), ("engine.js", HERE / "engine.js"),
-           ("duel.js", HERE / "duel.js")]
+SCRIPTS = [("paste.js", HERE / "paste.js"), ("engine.js", HERE / "engine.js")]
 OUTPUT = HERE / "specpick.html"
 
 
