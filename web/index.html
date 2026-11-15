@@ -337,6 +337,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
         <button class="mini" id="btnToml">查看 / 复制 TOML</button>
         <button class="mini" id="btnMd">复制 Markdown 报告</button>
       </div>
+      <p class="small" style="margin-top:12px">手里还没有候选、只知道想补点什么？
+        <button class="mini" id="btnGoNut" style="margin-left:6px">按营养倒推该买什么 ↓</button></p>
       <div id="tomlBox" class="hidden" style="margin-top:10px">
         <div class="small">下面两段可分别保存为 needs.toml 与 items.toml，用命令行跑会得到同样的结果。</div>
         <label class="f" style="margin-top:8px">needs.toml</label><textarea id="tomlNeeds" rows="8" readonly></textarea>
@@ -400,11 +402,11 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <div class="wrap" id="nutWrap">
   <div style="grid-column:1/-1">
     <div class="card" id="nutCard">
-      <h2><span class="n">🍎</span> 反着问：先说缺什么，再挑吃什么</h2>
+      <h2><span class="n">🍎</span> 按营养挑：还不知道买什么的时候</h2>
       <div class="tip">
-        上面的问题是「这几件里选哪个」；这个回答的是另一种处境 &mdash;&mdash; <b>不知道该买什么，只知道身体缺什么</b>。
-        表是内置的食物成分数据（每 100g 可食部），按「吃一份能补掉多少缺口」算，不是模型随口推荐。<br>
-        选 1&ndash;3 样想补的，下面直接给排序和一份搭配。<b>不用填上面的表单，跟上面的流程互不干扰</b>。
+        <b>手里还没有候选、只知道想补点什么的时候，用这张表。</b>
+        数据是内置的食物成分表（每 100g 可食部），按「吃一份能补掉多少缺口」算，不是模型随口推荐。
+        选 1&ndash;3 样想补的，下面给排序和一份搭配；挑中了想比价格，把名字填回上面的候选框再跑一次就行。
       </div>
       <label class="f">想补哪几样（最多选 3 个）</label>
       <div id="nutChips" class="chips"></div>
@@ -438,6 +440,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       <div class="toolbar">
         <button class="primary" id="btnNut">按缺口挑给我</button>
         <button class="mini" id="btnNutSigns">不知道缺什么？看常见信号</button>
+        <button class="mini" id="btnBackTop">↑ 回到上面的对比</button>
       </div>
       <div id="nutSigns" class="hidden" style="margin-top:10px"></div>
       <div id="nutOut" style="margin-top:14px"></div>
@@ -859,6 +862,7 @@ var NUT_SIGNS = [
   ['晚上看不清、眼睛干、皮肤干', ['va']]
 ];
 var nut = { targets: [], portion: 200, cat: 'fruit', lowSugar: false, limitK: false };
+var NUT_ROWS = [];   // 本次排序结果（不写进 localStorage）
 
 (function restoreNut(){
   try{
@@ -922,6 +926,13 @@ $('#btnNut').onclick = function(){
   runNut();
   if(window.innerWidth < 920) $('#nutOut').scrollIntoView({behavior:'smooth', block:'start'});
 };
+$('#btnGoNut').onclick = function(){
+  $('#nutWrap').scrollIntoView({behavior:'smooth', block:'start'});
+  if(!nut.targets.length) toast('先点上想补的营养素，比如「维生素C」');
+};
+$('#btnBackTop').onclick = function(){
+  $('#reportCard').scrollIntoView({behavior:'smooth', block:'start'});
+};
 $('#btnNutSigns').onclick = function(){
   var box = $('#nutSigns');
   var show = box.classList.contains('hidden');
@@ -946,6 +957,7 @@ function runNut(){
   var r = Specpick.nutritionPlan(nut.targets, {
     portion: nut.portion, lowSugar: nut.lowSugar, limitK: nut.limitK, cats: cats
   });
+  NUT_ROWS = (r.rows || []).slice();
   if(r.error || !r.rows.length){
     out.innerHTML = '<div class="small">'+esc(r.error || '这一类里没有能算的食材，换个范围试试')+'</div>';
     return;
@@ -1010,6 +1022,12 @@ function runNut(){
     L.push('<div class="small" style="margin-top:6px">已经在限钾的话，别只看这张表的降权排序 &mdash;&mdash; 香蕉、牛油果、菠菜都算高钾，具体吃多少听肾内科的。</div>');
   }
 
+  if(NUT_ROWS.length){
+    var top3 = NUT_ROWS.slice(0, 3).map(function(x){ return x.name; }).join('、');
+    L.push('<div class="toolbar" style="margin-top:14px">'+
+      '<button class="mini" data-nutpush="1">把前 3 样加成候选，接着比价格 →</button>'+
+      '<span class="small" style="align-self:center">'+esc(top3)+'</span></div>');
+  }
   L.push('<div class="small" style="margin-top:10px;line-height:1.7">'+
     '排序不是「含量排行榜」：补到 100% 就不再加分，所以维C 486% 的冬枣会输给同时兼顾纤维的番石榴 &mdash;&mdash; 缺口不会因为你吃撑了补两次。<br>'+
     '副作用也照实说：糖高的会标黄提示（每 100g 含糖 ≥15g 的降权），限钾模式下钾 ≥300mg/100g 的降权。<br>'+
@@ -1018,6 +1036,25 @@ function runNut(){
   out.innerHTML = L.join('');
 }
 
+function pushNutToItems(){
+  var rows = NUT_ROWS.slice(0, 3);
+  if(!rows.length) return;
+  sync();
+  var added = 0;
+  rows.forEach(function(row){
+    if(state.items.length >= 10) return;
+    var it = {id: nextId(), name: row.name, price: 0};
+    state.fields.forEach(function(f){ it[f.key] = (f.type === 'number' ? null : ''); });
+    state.items.push(it); added++;
+  });
+  renderForm(); save(); run(true);
+  toast(added ? ('已把 '+added+' 样填进候选，补个价格就能跟别的货一起比') : '候选到 10 件了，先删几件再加');
+  if(added) $('#items').scrollIntoView({behavior:'smooth', block:'start'});
+}
+$('#nutOut').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('[data-nutpush]') : null;
+  if(b) pushNutToItems();
+});
 $('#nutPortion').value = String(nut.portion);
 $('#nutCat').value = nut.cat;
 $('#nutSugar').value = nut.lowSugar ? '1' : '0';
