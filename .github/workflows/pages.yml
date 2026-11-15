@@ -31,6 +31,7 @@ jobs:
           cp web/index.html _site/index.html
           cp web/engine.js _site/engine.js
           cp web/paste.js _site/paste.js
+          cp web/duel.js _site/duel.js
           cp web/specpick.html _site/specpick.html
 
       - uses: actions/configure-pages@v5
