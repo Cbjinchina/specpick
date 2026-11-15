@@ -26,6 +26,7 @@ from specpick.engine import (  # noqa: E402
     sensitivity,
     validate_case,
 )
+from specpick.nutrition import plan as nutrition_plan  # noqa: E402
 
 REAL_CASES = [
     ("kitchen", ROOT / "examples" / "kitchen-rack"),
@@ -134,6 +135,19 @@ def synthetic() -> list[tuple[str, dict, list[dict]]]:
     return out
 
 
+NUT_CASES = [
+    ("nut_vc_fiber_fruit",
+     ["vc", "fiber"], {"portion": 200, "cats": ["水果"]}),
+    ("nut_fe_ca_fruit_gap",
+     ["fe", "ca"], {"portion": 200, "cats": ["水果"]}),
+    ("nut_penalty_and_all_cats",
+     ["k", "fiber"], {"portion": 150, "lowSugar": True, "limitK": True}),
+    ("nut_va_cap_liver",
+     ["va", "fe"], {"portion": 300}),
+    ("nut_empty_targets", [], {"portion": 200}),
+]
+
+
 def decide_data(needs: dict, items: list[dict], case_id: str) -> tuple[dict, list[str]]:
     """与 engine.decide 等价，只是输入从目录换成已解析的 dict。"""
     empty = {
@@ -237,9 +251,30 @@ def main() -> int:
         data, errors = decide_data(needs, items, cid)
         expected.append(summarize(data, errors))
 
+    nut_expected = []
+    for cid, targets, opts in NUT_CASES:
+        # 网页侧用 camelCase 传参，这里翻译成 Python 的 snake_case 关键字
+        py_opts = {"portion": opts.get("portion", 200),
+                   "low_sugar": bool(opts.get("lowSugar")),
+                   "limit_k": bool(opts.get("limitK")),
+                   "cats": opts.get("cats")}
+        r = nutrition_plan(targets, **py_opts)
+        nut_expected.append({
+            "id": cid,
+            "targets": r["targets"],
+            "portion": r["portion"],
+            "rows": r["rows"],
+            "combo": r["combo"],
+            "gaps": r["gaps"],
+            "error": r.get("error"),
+        })
+
     proc = subprocess.run(
         ["node", str(HERE / "verify.js")],
-        input=json.dumps(payload, ensure_ascii=False),
+        input=json.dumps({"cases": payload, "nutrition": [
+            {"id": cid, "targets": targets, "opts": opts}
+            for cid, targets, opts in NUT_CASES
+        ]}, ensure_ascii=False),
         text=True, capture_output=True, cwd=str(HERE),
     )
     if proc.returncode != 0:
@@ -273,6 +308,26 @@ def main() -> int:
                     detail += f"\n    {key}: Python={exp[key]!r}\n          JS={act.get(key)!r}"
         print(f"  [{'OK' if ok else 'FAIL'}] {cid}: {detail}")
 
+    nut_actual = got.get("nutrition") or []
+    for exp, act in zip(nut_expected, nut_actual):
+        cid = exp["id"]
+        a = json.dumps(canon(exp), ensure_ascii=False, sort_keys=True)
+        b = json.dumps(canon(act), ensure_ascii=False, sort_keys=True)
+        ok = a == b
+        detail = ""
+        if ok:
+            top = exp["rows"][0]["name"] if exp["rows"] else "—"
+            detail = (f"首选 {top} · 候选 {len(exp['rows'])} 个"
+                      + (f" · 补不上的项 {len(exp['gaps'])} 个" if exp["gaps"] else "")
+                      + (f" · 校验拦截：{exp['error']}" if exp.get("error") else ""))
+        else:
+            failed += 1
+            detail = "结果不一致"
+            for key in exp:
+                if json.dumps(canon(exp[key]), sort_keys=True) != json.dumps(canon(act.get(key)), sort_keys=True):
+                    detail += f"\n    {key}: Python={exp[key]!r}\n          JS={act.get(key)!r}"
+        print(f"  [{'OK' if ok else 'FAIL'}] {cid}: {detail}")
+
     parity = got.get("parity")
     if not isinstance(parity, dict) or any(v is not True for v in parity.values()):
         failed += 1
@@ -280,7 +335,7 @@ def main() -> int:
     else:
         print("  [OK] 网页内置案例与仓库 TOML 的裁决字段一致：", ", ".join(parity))
 
-    print(f"\n共 {len(cases)} 个案例 · 失败 {failed} 个")
+    print(f"\n共 {len(cases)} 个裁决案例 + {len(NUT_CASES)} 个营养案例 · 失败 {failed} 个")
     return 1 if failed else 0
 
 

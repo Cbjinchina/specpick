@@ -313,8 +313,168 @@
     return { result: result, errors: [] };
   }
 
+  /* ---------------- 营养缺口推荐（对应 specpick/nutrition.py） ----------------
+   * 表里是每 100g 可食部的常见参考值，只用于同表内相对比较；
+   * NRV 用《预包装食品营养标签通则》的每日参考值，把「吃一份能补多少」算成百分比。
+   * 这张表必须和 Python 侧逐字一致，web/verify.py 会交叉校验。
+   */
+  var _NUT_COLS = ['vc', 'k', 'fiber', 'folate', 'ca', 'fe', 'va'];
+  var NUTRIENTS = [
+    ['vc', '维生素C', 'mg', 100.0],
+    ['fiber', '膳食纤维', 'g', 25.0],
+    ['k', '钾', 'mg', 2000.0],
+    ['folate', '叶酸', 'µg', 400.0],
+    ['ca', '钙', 'mg', 800.0],
+    ['fe', '铁', 'mg', 15.0],
+    ['va', '维生素A', 'µg', 800.0]
+  ];
+  var FOODS_RAW = [
+    ['冬枣', '水果', 243.0, 195.0, 1.9, 20.0, 22.0, 1.2, 40.0, 28.0],
+    ['猕猴桃', '水果', 62.0, 312.0, 2.6, 25.0, 27.0, 1.2, 6.0, 10.0],
+    ['番石榴', '水果', 68.0, 235.0, 5.9, 49.0, 13.0, 0.2, 31.0, 8.0],
+    ['草莓', '水果', 47.0, 131.0, 1.1, 24.0, 18.0, 1.8, 5.0, 7.0],
+    ['橙子', '水果', 33.0, 159.0, 1.8, 30.0, 20.0, 0.4, 13.0, 11.0],
+    ['木瓜', '水果', 43.0, 182.0, 1.7, 44.0, 12.0, 0.3, 47.0, 8.0],
+    ['芒果', '水果', 23.0, 138.0, 1.3, 43.0, 11.0, 0.2, 150.0, 14.0],
+    ['圣女果', '水果', 14.0, 179.0, 1.8, 15.0, 10.0, 0.5, 92.0, 4.0],
+    ['蓝莓', '水果', 10.0, 77.0, 2.4, 6.0, 6.0, 0.3, 3.0, 10.0],
+    ['香蕉', '水果', 8.0, 256.0, 1.2, 20.0, 7.0, 0.4, 5.0, 15.0],
+    ['牛油果', '水果', 8.0, 599.0, 6.7, 81.0, 12.0, 0.6, 3.0, 1.0],
+    ['梨', '水果', 6.0, 92.0, 3.1, 8.0, 9.0, 0.5, 6.0, 10.0],
+    ['苹果', '水果', 4.0, 119.0, 1.7, 3.0, 4.0, 0.6, 3.0, 13.0],
+    ['火龙果', '水果', 3.0, 20.0, 1.6, 8.0, 6.0, 0.3, 5.0, 13.0],
+    ['彩椒', '蔬菜', 72.0, 142.0, 1.4, 46.0, 10.0, 0.3, 57.0, 4.0],
+    ['西兰花', '蔬菜', 51.0, 316.0, 2.6, 63.0, 50.0, 0.7, 60.0, 3.0],
+    ['菠菜', '蔬菜', 32.0, 558.0, 2.2, 194.0, 66.0, 2.9, 487.0, 1.0],
+    ['红薯', '蔬菜', 26.0, 130.0, 2.2, 12.0, 23.0, 0.5, 125.0, 6.0],
+    ['胡萝卜', '蔬菜', 5.0, 320.0, 2.8, 12.0, 32.0, 0.5, 688.0, 5.0],
+    ['燕麦', '主食豆类', 0.0, 214.0, 10.6, 26.0, 54.0, 3.6, 0.0, 1.0],
+    ['杂豆（鹰嘴豆）', '主食豆类', 1.0, 291.0, 7.6, 172.0, 49.0, 2.9, 1.0, 3.0],
+    ['北豆腐', '主食豆类', 0.0, 106.0, 0.5, 27.0, 164.0, 1.9, 0.0, 0.0],
+    ['猪肝', '肉蛋奶', 20.0, 235.0, 0.0, 236.0, 6.0, 22.6, 4972.0, 0.0],
+    ['瘦牛肉', '肉蛋奶', 0.0, 284.0, 0.0, 6.0, 6.0, 2.8, 0.0, 0.0],
+    ['鸡蛋', '肉蛋奶', 0.0, 154.0, 0.0, 47.0, 56.0, 1.6, 234.0, 0.0],
+    ['牛奶', '肉蛋奶', 1.0, 109.0, 0.0, 5.0, 104.0, 0.3, 24.0, 5.0],
+    ['杏仁', '坚果', 0.0, 705.0, 12.2, 30.0, 97.0, 2.1, 0.0, 4.0]
+  ];
+
+  // 「一次别超过多少克」：猪肝的维A 是日需的 60 倍/100g，照用户选的 200g 算会给出伤人的建议
+  var MAX_G = {
+    '猪肝': 30, '牛奶': 300, '杏仁': 30
+  };
+
+  var NRV = {}, NLABEL = {}, NUNIT = {};
+  NUTRIENTS.forEach(function (n) { NRV[n[0]] = n[3]; NLABEL[n[0]] = n[1]; NUNIT[n[0]] = n[2]; });
+  var FOODS = FOODS_RAW.map(function (row) {
+    var per = {};
+    _NUT_COLS.forEach(function (col, i) { per[col] = row[2 + i]; });
+    return { name: row[0], cat: row[1], per100: per, sugar: row[9],
+             max_g: MAX_G[row[0]] || 0 };
+  });
+
+  function gramsOf(food, portion) {
+    return (food.max_g > 0 && food.max_g < portion) ? food.max_g : portion;
+  }
+
+  function nutritionPlan(targets, opts) {
+    opts = opts || {};
+    var portion = opts.portion == null ? 200 : Number(opts.portion);
+    var lowSugar = !!opts.lowSugar;
+    var limitK = !!opts.limitK;
+    var cats = opts.cats || null;
+    var top = opts.top == null ? 8 : opts.top;
+
+    var keys = [];
+    (targets || []).forEach(function (t) {
+      if (NRV[t] != null && keys.indexOf(t) === -1) keys.push(t);
+    });
+    if (!keys.length) {
+      return { targets: [], portion: portion, rows: [],
+               combo: { items: [], cover: {} }, gaps: [],
+               error: '先选至少一个想补的营养素' };
+    }
+
+    var pool = FOODS.filter(function (f) { return !cats || cats.indexOf(f.cat) !== -1; });
+    var rows = pool.map(function (food) {
+      var grams = gramsOf(food, portion);
+      var per100 = {}, pcts = {};
+      keys.forEach(function (k) {
+        per100[k] = food.per100[k] / NRV[k] * 100;      // 每 100g 能补到的百分比
+        pcts[k] = per100[k] * grams / 100;
+      });
+      var cover = 0;
+      keys.forEach(function (k) { cover += Math.min(1, pcts[k] / 100); });
+      cover = cover / keys.length;
+      var flags = [];
+      if (limitK && food.per100.k >= 300) flags.push('钾偏高');
+      if (lowSugar && food.sugar >= 15) flags.push('糖偏高');
+      var score = cover;
+      if (flags.indexOf('钾偏高') !== -1) score *= 0.6;
+      if (flags.indexOf('糖偏高') !== -1) score *= 0.7;
+      return { name: food.name, cat: food.cat, sugar: food.sugar,
+               used: grams, capped: grams < portion,
+               pct: pcts, pct100: per100, score: score, flags: flags };
+    });
+
+    rows.sort(function (a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      if (a.sugar !== b.sugar) return a.sugar - b.sugar;
+      return a.name < b.name ? -1 : (a.name > b.name ? 1 : 0);
+    });
+
+    var bestByTarget = {};
+    keys.forEach(function (k) {
+      var m = 0;
+      rows.forEach(function (r) { if (r.pct[k] > m) m = r.pct[k]; });
+      bestByTarget[k] = m;
+    });
+    var gaps = keys.filter(function (k) { return bestByTarget[k] < 25; });
+
+    return {
+      targets: keys.map(function (k) {
+        return { key: k, label: NLABEL[k], unit: NUNIT[k], nrv: NRV[k],
+                 best_pct: bestByTarget[k] };
+      }),
+      portion: portion,
+      rows: rows.slice(0, top),
+      combo: nutritionCombo(rows, keys),
+      gaps: gaps
+    };
+  }
+
+  function nutritionCombo(rows, keys) {
+    var picked = [], cover = {}, remaining = rows.slice();
+    keys.forEach(function (k) { cover[k] = 0; });
+    for (var slot = 0; slot < 3; slot++) {
+      var best = null, bestGain = 0, bestG = 0;
+      remaining.forEach(function (row) {
+        var grams = row.used >= 100 ? 100 : row.used;
+        var gain = 0, waste = 0;
+        keys.forEach(function (k) {
+          var add = row.pct100[k] * grams / 100;
+          gain += Math.min(1, (cover[k] + add) / 100) - Math.min(1, cover[k] / 100);
+          waste += Math.max(0, cover[k] + add - 100) / 100;
+        });
+        var value = gain - 0.25 * waste;   // 够用就好：同样能补齐，选浪费少的
+        if (value > bestGain + 1e-9) { best = row; bestGain = value; bestG = grams; }
+      });
+      if (!best) break;
+      var pct = {};
+      keys.forEach(function (k) { pct[k] = best.pct100[k] * bestG / 100; });
+      picked.push({ name: best.name, cat: best.cat, g: bestG, pct: pct });
+      keys.forEach(function (k) { cover[k] += pct[k]; });
+      remaining = remaining.filter(function (r) { return r !== best; });
+    }
+    var out = {};
+    keys.forEach(function (k) { out[k] = cover[k]; });
+    return { items: picked, cover: out };
+  }
+
   return {
     decide: decide,
+    nutritionPlan: nutritionPlan,
+    nutritionNutrients: NUTRIENTS,
+    nutritionFoods: FOODS_RAW,
     validateCase: validateCase,
     hardReasons: hardReasons,
     scoreItems: scoreItems,

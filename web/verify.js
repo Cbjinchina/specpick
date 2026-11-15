@@ -8,6 +8,8 @@ const path = require('path');
 const Specpick = require('./engine.js');
 
 const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+const cases = payload.cases || payload;
+const nutCases = payload.nutrition || [];
 
 function summarize(out) {
   const r = out.result;
@@ -35,8 +37,21 @@ function summarize(out) {
   };
 }
 
-const results = payload.map(function (c) {
+const results = cases.map(function (c) {
   return summarize(Specpick.decide(c.needs, c.items, c.id));
+});
+
+const nutrition = nutCases.map(function (c) {
+  const r = Specpick.nutritionPlan(c.targets, c.opts || {});
+  return {
+    id: c.id,
+    targets: r.targets,
+    portion: r.portion,
+    rows: r.rows,
+    combo: r.combo,
+    gaps: r.gaps,
+    error: r.error || null
+  };
 });
 
 /* 顺带核对：网页内置案例数据与仓库 TOML 案例的裁决相关字段是否一致。
@@ -125,7 +140,7 @@ try {
   const CASES = vm.runInNewContext('(' + lit + ')');
   parity = {};
   ['kitchen', 'laptop', 'gpu'].forEach(function (k) {
-    const src = payload.filter(function (c) { return c.id === k; })[0];
+    const src = cases.filter(function (c) { return c.id === k; })[0];
     if (!src) { parity[k] = '缺少对应的仓库案例'; return; }
     const built = buildFromState(CASES[k].data);
     const a = canon(core(built.needs, built.items));
@@ -137,4 +152,4 @@ try {
   parity = { error: e.message };
 }
 
-process.stdout.write(JSON.stringify({ results: results, parity: parity }));
+process.stdout.write(JSON.stringify({ results: results, parity: parity, nutrition: nutrition }));

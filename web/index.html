@@ -97,6 +97,22 @@ table.score{border-collapse:collapse;width:100%;font-size:12px;margin-top:6px}
 table.score th,table.score td{border:1px solid var(--line);padding:5px 6px;text-align:right;white-space:nowrap}
 table.score th:first-child,table.score td:first-child{text-align:left;white-space:normal;min-width:96px}
 table.score td.na{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 14px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:7px 12px;
+  font-size:13px;cursor:pointer;color:var(--text);line-height:1.2}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.chip .u{font-size:11px;opacity:.7;margin-left:3px}
+.nrow{padding:10px 0;border-bottom:1px dashed var(--line)}
+.nrow:last-of-type{border-bottom:0}
+.nrow .ntop{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.nrow .nm{font-weight:600;font-size:14px}
+.nrow .sc{font-size:12px;color:var(--muted);white-space:nowrap}
+.nbar{height:6px;background:var(--code);border-radius:4px;overflow:hidden;margin:6px 0}
+.nbar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.npcts{font-size:12px;color:var(--muted);line-height:1.7}
+.nflag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:10px;
+  padding:1px 7px;margin-left:6px;color:var(--warn);background:var(--warn-bg)}
+.ncombo{background:var(--code);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;line-height:1.7}
 .hidden{display:none}
 /* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
 .pickwrap{position:relative;display:block}
@@ -169,7 +185,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-13 09:45（数字项吞原文 + 档位打分 + 缺数据不倒扣）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-15 22:05（新增：按营养缺口挑吃的）</p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -334,6 +350,54 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
         <button class="mini" id="btnRvMd">复制复盘 Markdown</button>
       </div>
       <div id="rvOut"></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="nutWrap">
+  <div style="grid-column:1/-1">
+    <div class="card" id="nutCard">
+      <h2><span class="n">🍎</span> 另一条路：我缺什么，该买什么吃</h2>
+      <div class="tip">
+        上面那套是「拿几个候选比谁好」；这里反过来问 &mdash;&mdash; <b>先说你想补什么，再看什么最划算</b>。
+        表是内置的食物成分数据（每 100g 可食部），按「吃一份能补掉多少缺口」算，不是模型随口推荐。<br>
+        选 1&ndash;3 样你想补的，下面直接给你排序和一份搭配。<b>不用填上面的表单</b>。
+      </div>
+      <label class="f">想补哪几样（最多选 3 个）</label>
+      <div id="nutChips" class="chips"></div>
+      <div class="two">
+        <div><label class="f">一次大概吃多少</label>
+          <select id="nutPortion">
+            <option value="100">100 g（一小把）</option>
+            <option value="150">150 g</option>
+            <option value="200" selected>200 g（一个中等水果）</option>
+            <option value="300">300 g（一大盘）</option>
+          </select></div>
+        <div><label class="f">在哪类里挑</label>
+          <select id="nutCat">
+            <option value="fruit" selected>只看水果</option>
+            <option value="fruitveg">水果 + 蔬菜</option>
+            <option value="all">全都要（含肉蛋豆）</option>
+          </select></div>
+      </div>
+      <div class="two">
+        <div><label class="f">在控糖吗</label>
+          <select id="nutSugar">
+            <option value="0" selected>不用管</option>
+            <option value="1">要，糖高的降权</option>
+          </select></div>
+        <div><label class="f">在限钾吗（肾病遵医嘱）</label>
+          <select id="nutK">
+            <option value="0" selected>不用管</option>
+            <option value="1">要，钾高的降权</option>
+          </select></div>
+      </div>
+      <div class="toolbar">
+        <button class="primary" id="btnNut">按缺口挑给我</button>
+        <button class="mini" id="btnNutSigns">不知道缺什么？看常见信号</button>
+      </div>
+      <div id="nutSigns" class="hidden" style="margin-top:10px"></div>
+      <div id="nutOut" style="margin-top:14px"></div>
     </div>
   </div>
 </div>
@@ -738,6 +802,184 @@ $('#rvOut').addEventListener('click', function(e){
   state.records.splice(i, 1);
   save(); renderReview(); toast('已删除这条回访');
 });
+
+/* ---------- 营养缺口推荐（与 specpick/nutrition.py 同表同算法） ---------- */
+var NUT_KEY = 'specpick.nutrition.v1';
+var NUT_SIGNS = [
+  ['牙龈出血、伤口好得慢', ['vc']],
+  ['蹲下起来发晕、经量大、吃素为主', ['fe']],
+  ['腿爱抽筋、口重、蔬菜吃得少', ['k']],
+  ['几天才上一次厕所、常吃外卖', ['fiber']],
+  ['在备孕 / 已经怀孕', ['folate']],
+  ['不喝奶、很少晒太阳、腰背酸', ['ca']],
+  ['晚上看不清、眼睛干、皮肤干', ['va']]
+];
+var nut = { targets: [], portion: 200, cat: 'fruit', lowSugar: false, limitK: false };
+
+(function restoreNut(){
+  try{
+    var raw = localStorage.getItem(NUT_KEY);
+    if(!raw) return;
+    var o = JSON.parse(raw);
+    if(!o) return;
+    if(Array.isArray(o.targets)) nut.targets = o.targets.slice(0, 3);
+    if(o.portion) nut.portion = Number(o.portion) || 200;
+    if(o.cat) nut.cat = o.cat;
+    nut.lowSugar = !!o.lowSugar;
+    nut.limitK = !!o.limitK;
+  }catch(e){}
+})();
+
+function saveNut(){ try{ localStorage.setItem(NUT_KEY, JSON.stringify(nut)); }catch(e){} }
+
+function renderNutChips(){
+  var list = Specpick.nutritionNutrients;
+  $('#nutChips').innerHTML = list.map(function(n){
+    var on = nut.targets.indexOf(n[0]) !== -1;
+    return '<button type="button" class="chip'+(on?' on':'')+'" data-nut="'+n[0]+'" '+
+      'aria-pressed="'+(on?'true':'false')+'">'+esc(n[1])+'</button>';
+  }).join('');
+}
+
+function renderNutSigns(){
+  $('#nutSigns').innerHTML = '<div class="small">症状不等于「缺」，只是给个起点；真要确认得看化验单。</div>'+
+    NUT_SIGNS.map(function(s, i){
+      return '<div style="margin-top:6px"><button class="mini" data-sign="'+i+'">'+esc(s[0])+'</button></div>';
+    }).join('');
+}
+
+$('#nutChips').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('[data-nut]') : null;
+  if(!b) return;
+  var key = b.getAttribute('data-nut'), i = nut.targets.indexOf(key);
+  if(i >= 0){ nut.targets.splice(i, 1); }
+  else {
+    if(nut.targets.length >= 3){ toast('最多同时补 3 样，先取消一个'); return; }
+    nut.targets.push(key);
+  }
+  saveNut(); renderNutChips(); runNut();
+});
+
+$('#nutSigns').addEventListener('click', function(e){
+  var b = e.target.closest ? e.target.closest('[data-sign]') : null;
+  if(!b) return;
+  var s = NUT_SIGNS[Number(b.getAttribute('data-sign'))];
+  if(!s) return;
+  nut.targets = s[1].slice(0, 3);   // 别超上限
+  saveNut(); renderNutChips(); runNut();
+});
+
+$('#nutPortion').onchange = function(){ nut.portion = Number(this.value) || 200; saveNut(); runNut(); };
+$('#nutCat').onchange = function(){ nut.cat = this.value; saveNut(); runNut(); };
+$('#nutSugar').onchange = function(){ nut.lowSugar = this.value === '1'; saveNut(); runNut(); };
+$('#nutK').onchange = function(){ nut.limitK = this.value === '1'; saveNut(); runNut(); };
+$('#btnNut').onclick = function(){
+  if(!nut.targets.length){ toast('先点上至少一个你想补的营养素'); runNut(); return; }
+  runNut();
+  if(window.innerWidth < 920) $('#nutOut').scrollIntoView({behavior:'smooth', block:'start'});
+};
+$('#btnNutSigns').onclick = function(){
+  var box = $('#nutSigns');
+  var show = box.classList.contains('hidden');
+  box.classList.toggle('hidden', !show);
+  if(show) renderNutSigns();
+};
+
+function nutPctText(targets, vals){
+  return targets.map(function(t){
+    var v = vals[t.key];
+    return esc(t.label) + ' <b>' + Math.round(v) + '%</b>';
+  }).join(' · ');
+}
+
+function runNut(){
+  var out = $('#nutOut');
+  if(!nut.targets.length){
+    out.innerHTML = '<div class="small">上面点一个你想补的（比如「维生素C」），这里就会出排序。</div>';
+    return;
+  }
+  var cats = nut.cat === 'fruit' ? ['水果'] : (nut.cat === 'fruitveg' ? ['水果', '蔬菜'] : null);
+  var r = Specpick.nutritionPlan(nut.targets, {
+    portion: nut.portion, lowSugar: nut.lowSugar, limitK: nut.limitK, cats: cats
+  });
+  if(r.error || !r.rows.length){
+    out.innerHTML = '<div class="small">'+esc(r.error || '这一类里没有能算的食材，换个范围试试')+'</div>';
+    return;
+  }
+
+  var names = r.targets.map(function(t){ return t.label; }).join(' + ');
+  var best = r.rows[0];
+  var bestOne = r.targets.map(function(t){ return t.label + ' ' + Math.round(best.pct[t.key]) + '%'; }).join('、');
+  var L = [];
+  var howMuch = best.capped ? ('按 '+best.used+'g 吃（这东西别一次吃太多）') : ('一次吃 '+r.portion+'g');
+  L.push('<div class="small" style="margin-bottom:8px">要补 <b>'+esc(names)+'</b>，'+howMuch+
+    '的话，最划算的是 <b>'+esc(best.name)+'</b>（'+esc(bestOne)+'）。</div>');
+
+  r.rows.slice(0, 6).forEach(function(row, i){
+    L.push('<div class="nrow">'+
+      '<div class="ntop"><span class="nm">'+(i+1)+'. '+esc(row.name)+
+        '<span class="badge" style="margin-left:6px">'+esc(row.cat)+'</span>'+
+        (row.capped ? '<span class="nflag" style="color:var(--muted);background:var(--chip)">按 '+row.used+'g 算</span>' : '')+
+        row.flags.map(function(f){ return '<span class="nflag">'+esc(f)+'</span>'; }).join('')+
+      '</span><span class="sc">补到 '+(row.score*100).toFixed(0)+'%</span></div>'+
+      '<div class="nbar"><i style="width:'+Math.max(2, Math.min(100, Math.round(row.score*100)))+'%"></i></div>'+
+      '<div class="npcts">'+nutPctText(r.targets, row.pct)+
+        '　糖约 '+(row.sugar*1).toFixed(0)+' g/100g</div>'+
+    '</div>');
+  });
+
+  if(r.combo.items.length){
+    var parts = r.combo.items.map(function(it){ return esc(it.name)+' '+it.g+'g'; }).join(' + ');
+    var cover = r.targets.map(function(t){
+      return esc(t.label)+' <b>'+Math.round(r.combo.cover[t.key])+'%</b>';
+    }).join('、');
+    var short = r.targets.filter(function(t){
+      return r.combo.cover[t.key] < 100 && r.gaps.indexOf(t.key) === -1;
+    }).map(function(t){ return esc(t.label)+' '+Math.round(r.combo.cover[t.key])+'%'; });
+    var tail;
+    if(!short.length){
+      tail = r.gaps.length
+        ? ' &mdash;&mdash; 这一份已经是这张表里能凑到的最好组合，补不上去的项见上面的提示。'
+        : ' &mdash;&mdash; 这一份就基本补齐了，不用再加量。';
+    } else {
+      tail = ' &mdash;&mdash; ' + short.join('、') + ' 还没到 100%，剩下的靠当天其它餐次。';
+    }
+    L.push('<div class="ncombo"><b>一份搭配</b>：'+parts+'<br>合计补到 '+cover+tail+'</div>');
+  }
+
+  if(r.gaps.length){
+    var weak = r.targets.filter(function(t){ return r.gaps.indexOf(t.key) !== -1; });
+    var detail = weak.map(function(t){ return esc(t.label)+'（这类里最高只有 '+Math.round(t.best_pct)+'%）'; }).join('、');
+    L.push('<div class="tip" style="margin:12px 0 0;color:var(--warn);opacity:1">'+
+      detail+'，也就是说'+(nut.cat === 'all' ? '这张表里的食材都不太补得上，得靠强化食品或补剂，并问医生' : '水果本身就不是好来源')+
+      (nut.cat === 'all' ? '。' : '，把上面的「在哪类里挑」改成「全都要」，会给出肉蛋豆的选项。')+'</div>');
+  }
+
+  var has = function(k){ return r.targets.some(function(t){ return t.key === k; }); };
+  if(has('fe')){
+    L.push('<div class="small" style="margin-top:10px">铁要分两种：红肉、肝、血里的<b>血红素铁</b>吸收率约 15&ndash;35%；菠菜、豆类里的非血红素铁只有 3&ndash;8%，配点维C（彩椒、猕猴桃）能往上提。所以「含量高」不等于「补得进去」。</div>');
+  }
+  if(has('ca')){
+    L.push('<div class="small" style="margin-top:6px">补钙别只看表：菠菜的草酸会把钙绑住，豆腐、牛奶、带骨小鱼才是真来源；还要有维生素D（晒太阳）才吸收得好。</div>');
+  }
+  if(has('k') && nut.limitK){
+    L.push('<div class="small" style="margin-top:6px">已经在限钾的话，别只看这张表的降权排序 &mdash;&mdash; 香蕉、牛油果、菠菜都算高钾，具体吃多少听肾内科的。</div>');
+  }
+
+  L.push('<div class="small" style="margin-top:10px;line-height:1.7">'+
+    '排序不是「含量排行榜」：补到 100% 就不再加分，所以维C 486% 的冬枣会输给同时兼顾纤维的番石榴 &mdash;&mdash; 缺口不会因为你吃撑了补两次。<br>'+
+    '副作用也照实说：糖高的会标黄提示（每 100g 含糖 ≥15g 的降权），限钾模式下钾 ≥300mg/100g 的降权。<br>'+
+    '数据是每 100g 可食部的常见参考值，只做同表内相对比较；<b>不构成医学建议</b>，怀疑自己缺什么请查血、听医生的。</div>');
+
+  out.innerHTML = L.join('');
+}
+
+$('#nutPortion').value = String(nut.portion);
+$('#nutCat').value = nut.cat;
+$('#nutSugar').value = nut.lowSugar ? '1' : '0';
+$('#nutK').value = nut.limitK ? '1' : '0';
+renderNutChips();
+runNut();
 
 /* ---------- 表单 → 引擎输入 ---------- */
 function buildCase(){
