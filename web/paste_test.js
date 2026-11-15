@@ -69,5 +69,21 @@ check('续航自动认出', r6.items[0].guessed.battery_h === 12, JSON.stringify
 const r7 = P.parse(`七彩虹 5060 Ultra W OC 8G\n¥4799\n七彩虹 5060 Ultra W OC 8G\n¥4799`, []);
 check('去重：只剩 1 件', r7.items.length === 1, JSON.stringify(r7.items));
 
+/* 8. 规格行夹在两件之间：不能把上一件的规格当成下一件的名字（回归：内存行吞掉华硕） */
+const r8 = P.parse(`七彩虹 5060 Ultra W OC 8G
+¥4799
+内存 16G GDDR7
+
+华硕 4060 雪豹 8G
+¥3199
+内存 8G GDDR6`, []);
+check('规格行归属：认出 2 件', r8.items.length === 2, JSON.stringify(r8.items));
+check('规格行归属：名字没串行', r8.items[0].name === '七彩虹 5060 Ultra W OC 8G' && r8.items[1].name === '华硕 4060 雪豹 8G',
+  r8.items.map(i => i.name).join(' / '));
+check('规格行归属：价格各归各的', r8.items[0].price === 4799 && r8.items[1].price === 3199,
+  r8.items.map(i => i.price).join(' / '));
+check('规格行归属：规格进 extra', /内存 16G/.test(r8.items[0].extra) && /内存 8G/.test(r8.items[1].extra),
+  r8.items.map(i => i.extra).join(' | '));
+
 console.log('\n共 ' + (pass + fail) + ' 项 · 通过 ' + pass + ' · 失败 ' + fail);
 process.exit(fail ? 1 : 0);

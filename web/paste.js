@@ -118,12 +118,12 @@
         var name = p.head && isTitleLike(p.head) ? p.head : null;
         if (name) {                       // 「名称 ¥5999」挤在同一行
           commit(name, p.value, bucket.join(' '));
-          pending = null; bucket = []; absorb = 0;
+          pending = null; bucket = []; absorb = 1;   // 紧跟的几行多半是这件的规格
           continue;
         }
         if (pending) {                    // 正常情况：名称在上，价格在下
           commit(pending, p.value, bucket.join(' '));
-          pending = null; bucket = []; absorb = 0;
+          pending = null; bucket = []; absorb = 1;   // 价格后面紧跟的规格行归这一件
         } else if (items.length && items[items.length - 1].price === 0) {
           items[items.length - 1].price = p.value;   // 名称已收下但没价格
           items[items.length - 1].guessed = guessNumbers(items[items.length - 1]);

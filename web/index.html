@@ -1000,14 +1000,18 @@ function pushNutToItems(){
   if(!rows.length) return;
   sync();
   var added = 0;
+  var skipped = 0;
   rows.forEach(function(row){
     if(state.items.length >= 10) return;
+    // 已经在候选里的同名货不重复加，连点两次不会出现「番石榴 ×3」
+    if(state.items.some(function(it){ return String(it.name || '').trim() === row.name; })){ skipped++; return; }
     var it = {id: nextId(), name: row.name, price: 0};
     state.fields.forEach(function(f){ it[f.key] = (f.type === 'number' ? null : ''); });
     state.items.push(it); added++;
   });
   renderForm(); save(); run(true);
-  toast(added ? ('已把 '+added+' 样填进候选，补个价格就能跟别的货一起比') : '候选到 10 件了，先删几件再加');
+  toast(added ? ('已把 '+added+' 样填进候选，补个价格就能跟别的货一起比')
+    : (skipped ? '这几样已经在候选里了，不用重复加' : '候选到 10 件了，先删几件再加'));
   if(added) $('#items').scrollIntoView({behavior:'smooth', block:'start'});
 }
 $('#nutOut').addEventListener('click', function(e){
