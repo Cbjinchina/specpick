@@ -91,6 +91,118 @@ class EngineUnits(unittest.TestCase):
         self.assertTrue(validate_case({"title": "t"}, []))
 
 
+class ScoringShapes(unittest.TestCase):
+    """同一个数字可以按四种比法算分：范围 / 对数 / 名次 / 越接近目标。"""
+
+    ITEMS = [
+        {"id": "a", "name": "小", "price": 10, "m": 200},
+        {"id": "b", "name": "中", "price": 10, "m": 5000},
+        {"id": "c", "name": "大", "price": 10, "m": 120000},
+    ]
+
+    def _scores(self, shape_cfg, items=None, direction="higher", metric="m"):
+        items = items or self.ITEMS
+        scored = score_items(items, {metric: 1}, {metric: direction}, None, {metric: shape_cfg})
+        return {s.name: round(s.total, 4) for s in scored}
+
+    def test_span_is_linear(self):
+        got = self._scores({"shape": "span"})
+        self.assertEqual(got["小"], 0.0)
+        self.assertEqual(got["大"], 1.0)
+        self.assertAlmostEqual(got["中"], (5000 - 200) / (120000 - 200), places=4)
+
+    def test_log_keeps_small_value_visible(self):
+        got = self._scores({"shape": "log"})
+        self.assertEqual(got["小"], 0.0)
+        self.assertEqual(got["大"], 1.0)
+        # 线性下「中」只有 4%，对数下到五成左右，不至于被打成 0
+        self.assertGreater(got["中"], 0.45)
+        self.assertLess(got["中"], 0.55)
+
+    def test_log_falls_back_when_non_positive(self):
+        items = [
+            {"id": "a", "name": "零", "price": 10, "m": 0},
+            {"id": "b", "name": "半", "price": 10, "m": 50},
+            {"id": "c", "name": "满", "price": 10, "m": 100},
+        ]
+        got = self._scores({"shape": "log"}, items)
+        self.assertEqual(got["零"], 0.0)
+        self.assertEqual(got["满"], 1.0)
+        self.assertAlmostEqual(got["半"], 0.5, places=4)
+
+    def test_ordinal_ignores_magnitude(self):
+        items = [
+            {"id": "a", "name": "甲", "price": 10, "m": 41},
+            {"id": "b", "name": "乙", "price": 10, "m": 38},
+            {"id": "c", "name": "丙", "price": 10, "m": 9000},
+        ]
+        got = self._scores({"shape": "ordinal"}, items)
+        self.assertEqual(got["丙"], 1.0)
+        self.assertEqual(got["乙"], 0.0)
+        self.assertEqual(got["甲"], 0.5)
+        # 换成线性，甲乙会被 9000 压成 0.0003 和 0
+        span = self._scores({"shape": "span"}, items)
+        self.assertLess(span["甲"], 0.01)
+
+    def test_target_point_full_marks_only_at_goal(self):
+        items = [
+            {"id": "a", "name": "太轻", "price": 10, "m": 1.2},
+            {"id": "b", "name": "正好", "price": 10, "m": 1.6},
+            {"id": "c", "name": "太重", "price": 10, "m": 2.1},
+        ]
+        got = self._scores({"shape": "target", "lo": 1.6, "hi": 1.6, "tol": 0.5}, items)
+        self.assertEqual(got["正好"], 1.0)
+        self.assertAlmostEqual(got["太轻"], 0.2, places=4)
+        self.assertEqual(got["太重"], 0.0)  # 偏出 0.5，正好扣到 0
+
+    def test_target_band_gives_full_marks_inside(self):
+        items = [
+            {"id": "a", "name": "小屏", "price": 10, "m": 5.4},
+            {"id": "b", "name": "正好", "price": 10, "m": 6.3},
+            {"id": "c", "name": "大屏", "price": 10, "m": 6.8},
+        ]
+        got = self._scores({"shape": "target", "lo": 6.1, "hi": 6.5, "tol": 1.0}, items)
+        self.assertEqual(got["正好"], 1.0)
+        self.assertGreater(got["小屏"], 0.0)
+        self.assertLess(got["小屏"], 1.0)
+
+    def test_target_needs_no_second_point(self):
+        """区间是绝对标准，只有一件候选有数据也应该给分。"""
+        items = [
+            {"id": "a", "name": "甲", "price": 10, "m": 1.6},
+            {"id": "b", "name": "乙", "price": 10, "m": None},
+        ]
+        got = self._scores({"shape": "target", "lo": 1.6, "hi": 1.6, "tol": 0.5}, items)
+        self.assertEqual(got["甲"], 1.0)
+
+    def test_bad_target_config_is_not_scored(self):
+        items = [
+            {"id": "a", "name": "甲", "price": 10, "m": 1},
+            {"id": "b", "name": "乙", "price": 10, "m": 2},
+        ]
+        for cfg in ({"shape": "target", "lo": 1, "hi": 1, "tol": 0},
+                    {"shape": "target", "lo": 1}):
+            got = self._scores(cfg, items)
+            self.assertEqual(got, {"甲": 0.0, "乙": 0.0})
+
+    def test_validate_rejects_unknown_shape(self):
+        errors = validate_case(
+            {"title": "t", "budget": 100, "weights": {"m": 1}, "directions": {"m": "higher"},
+             "shapes": {"m": {"shape": "magic"}}},
+            [{"id": "a", "name": "A", "price": 5, "m": 1}],
+        )
+        self.assertTrue(any("shape" in e or "比法" in e for e in errors), errors)
+
+    def test_validate_rejects_target_without_tolerance(self):
+        errors = validate_case(
+            {"title": "t", "budget": 100, "weights": {"m": 1}, "directions": {"m": "higher"},
+             "shapes": {"m": {"shape": "target", "lo": 1, "hi": 2, "tol": 0}}},
+            [{"id": "a", "name": "A", "price": 5, "m": 1.5}],
+        )
+        self.assertTrue(errors)
+        self.assertTrue(any("容差" in e or "tol" in e for e in errors), errors)
+
+
 class ReviewReport(unittest.TestCase):
     def test_review_summary(self):
         text = render_review(

@@ -101,6 +101,27 @@
       });
       if (!OPS[rule.op]) errors.push('不支持的操作符：' + rule.op);
     });
+    var shapes = needs.shapes || {};
+    Object.keys(shapes).forEach(function (metric) {
+      var cfg = shapes[metric] || {};
+      if (!(metric in weights)) {
+        errors.push('shapes.' + metric + ' 没有对应的权重项');
+        return;
+      }
+      if (cfg.shape && SHAPES.indexOf(cfg.shape) === -1) {
+        errors.push('shapes.' + metric + '.shape 只能是 ' + SHAPES.join(' / '));
+      }
+      if (shapeOf(cfg) === 'target') {
+        ['lo', 'hi', 'tol'].forEach(function (key) {
+          if (typeof cfg[key] !== 'number' || !isFinite(cfg[key])) {
+            errors.push('shapes.' + metric + ' 按「越接近越好」算，必须给数字 ' + key);
+          }
+        });
+        if (typeof cfg.tol === 'number' && isFinite(cfg.tol) && cfg.tol <= 0) {
+          errors.push('shapes.' + metric + '.tol 必须大于 0');
+        }
+      }
+    });
     items.forEach(function (item, i) {
       ['id', 'name', 'price'].forEach(function (key) {
         if (!(key in item)) errors.push('第 ' + (i + 1) + ' 个候选缺少 ' + key);
@@ -153,37 +174,96 @@
     return reasons;
   }
 
-  function boundsOf(values, itemCount) {
-    var nums = values.filter(function (v) { return v !== null; });
-    if (!nums.length) return null;
-    // 只有一件候选有数据：定不出高低，给了它满分等于白送，整项按「比不了」处理
-    if (nums.length < 2 && itemCount > 1) return null;
-    return [Math.min.apply(null, nums), Math.max.apply(null, nums)];
+  /* 四种比法，与 engine.py 的 SHAPES / _make_scorer 一一对应：
+   * span 按范围（默认）· log 对数刻度 · ordinal 按名次 · target 越接近越好 */
+  var SHAPES = ['span', 'log', 'ordinal', 'target'];
+
+  function shapeOf(cfg) {
+    var s = String((cfg && cfg.shape) || 'span');
+    return SHAPES.indexOf(s) === -1 ? 'span' : s;
   }
 
-  function norm(value, low, high, direction) {
-    if (high === low) return 1.0;
-    var ratio = (Number(value) - low) / (high - low);
-    return direction === 'higher' ? ratio : 1.0 - ratio;
+  function makeScorer(values, direction, cfg) {
+    cfg = cfg || {};
+    var shape = shapeOf(cfg);
+    var known = values.filter(function (v) { return v !== null; });
+    if (!known.length) return [null, { shape: shape }];
+
+    if (shape === 'target') {
+      var lo = cfg.lo, hi = cfg.hi, tol = cfg.tol;
+      if (typeof lo !== 'number' || typeof hi !== 'number' || typeof tol !== 'number' ||
+          !isFinite(lo) || !isFinite(hi) || !isFinite(tol)) {
+        return [null, { shape: 'target', bad: true }];
+      }
+      if (lo > hi) { var t0 = lo; lo = hi; hi = t0; }
+      if (tol <= 0) return [null, { shape: 'target', bad: true }];
+      var scoreTarget = function (v) {
+        var d;
+        if (v < lo) d = lo - v;
+        else if (v > hi) d = v - hi;
+        else return 1.0;
+        return Math.max(0.0, 1.0 - d / tol);
+      };
+      // 区间是绝对值，一件有数据也能比，不需要「至少两个点」
+      return [scoreTarget, { shape: 'target', lo: lo, hi: hi, tol: tol }];
+    }
+
+    if (known.length < 2 && values.length > 1) return [null, { shape: shape }];
+
+    if (shape === 'ordinal') {
+      var uniq = [];
+      known.slice().sort(function (a, b) { return a - b; }).forEach(function (v) {
+        if (uniq.indexOf(v) === -1) uniq.push(v);
+      });
+      if (uniq.length < 2) return [function () { return 1.0; }, { shape: 'ordinal', flat: true }];
+      var pos = {};
+      uniq.forEach(function (v, i) { pos[v] = i / (uniq.length - 1); });
+      var scoreOrdinal = function (v) {
+        var r = pos[v];
+        return direction === 'higher' ? r : 1.0 - r;
+      };
+      return [scoreOrdinal, { shape: 'ordinal' }];
+    }
+
+    // 对数是给正数用的。出现 0 / 负数就退回线性，并在 meta 里标明
+    var useLog = shape === 'log' && known.every(function (v) { return v > 0; });
+    var tf = useLog ? Math.log10 : Number;
+    var tvals = values.map(function (v) { return v === null ? null : tf(v); });
+    var low = Math.min.apply(null, tvals.filter(function (x) { return x !== null; }));
+    var high = Math.max.apply(null, tvals.filter(function (x) { return x !== null; }));
+    var scoreSpan = function (v) {
+      if (high === low) return 1.0;
+      var ratio = (tf(v) - low) / (high - low);
+      return direction === 'higher' ? ratio : 1.0 - ratio;
+    };
+    return [scoreSpan, {
+      shape: useLog ? 'log' : 'span',
+      log: useLog,
+      low: low,
+      high: high,
+      log_fallback: shape === 'log' && !useLog
+    }];
   }
 
-  function scoreItems(items, weights, directions, ranks) {
+  function scoreItems(items, weights, directions, ranks, shapes) {
     ranks = ranks || {};
+    shapes = shapes || {};
     var metrics = Object.keys(weights);
-    var values = {}, bounds = {};
+    var values = {}, scorers = {};
     metrics.forEach(function (m) {
       values[m] = items.map(function (it) { return toNum(it[m], ranks[m]); });
-      bounds[m] = boundsOf(values[m], items.length);
+      scorers[m] = makeScorer(values[m], directions[m] || 'higher', shapes[m]);
     });
     var totalW = 0;
-    metrics.forEach(function (m) { if (bounds[m] !== null) totalW += Number(weights[m]); });
+    metrics.forEach(function (m) { if (scorers[m][0] !== null) totalW += Number(weights[m]); });
     var scored = items.map(function (item, idx) {
       var parts = {}, avail = 0, known = 0;
       metrics.forEach(function (m) {
+        var fn = scorers[m][0];
         var weight = Number(weights[m]);
-        var b = bounds[m], v = values[m][idx];
-        if (b === null || v === null) { parts[m] = null; return; }
-        parts[m] = pyRound(weight * norm(v, b[0], b[1], directions[m]), 4);
+        var v = values[m][idx];
+        if (fn === null || v === null) { parts[m] = null; return; }
+        parts[m] = pyRound(weight * fn(v), 4);
         known += parts[m];
         avail += weight;
       });
@@ -207,49 +287,71 @@
     return scored;
   }
 
-  function counterfactual(items, winner, runnerUp, weights, directions, ranks) {
+  function counterfactual(items, winner, runnerUp, weights, directions, ranks, shapes) {
     ranks = ranks || {};
+    shapes = shapes || {};
     var gap = winner.total - runnerUp.total;
     if (gap <= 0) return [];
     var byId = {};
     items.forEach(function (it) { byId[String(it.id)] = it; });
     var challenger = byId[runnerUp.item_id];
-    var bd = {};
+    var info = {};
     Object.keys(weights).forEach(function (m) {
-      bd[m] = boundsOf(items.map(function (it) { return toNum(it[m], ranks[m]); }), items.length);
+      info[m] = makeScorer(
+        items.map(function (it) { return toNum(it[m], ranks[m]); }),
+        directions[m] || 'higher', shapes[m]);
     });
     var moves = [];
     Object.keys(weights).forEach(function (metric) {
       var weight = Number(weights[metric]);
-      if (weight <= 0) return;
-      var b = bd[metric];
-      if (b === null) return;
-      var low = b[0], high = b[1];
-      if (high === low) return;
+      var fn = info[metric][0], meta = info[metric][1];
+      if (weight <= 0 || fn === null) return;
+      // 名次型的「改到多少」取决于别人改不改，说不清就不说
+      if (meta.shape === 'ordinal') return;
       var current = toNum(challenger[metric], ranks[metric]);
       if (current === null) return;
       var needed = gap / weight;
-      var currentNorm = norm(current, low, high, directions[metric]);
-      var targetNorm = currentNorm + needed;
-      if (targetNorm > 1.0 + 1e-4) return;
-      var target = directions[metric] === 'higher'
-        ? low + targetNorm * (high - low)
-        : high - targetNorm * (high - low);
-      target = Math.max(low, Math.min(high, target));
+      var targetScore = fn(current) + needed;
+      if (targetScore > 1.0 + 1e-4) return;
+
+      var target, scale, low, high, t;
+      if (meta.shape === 'target') {
+        var lo = meta.lo, hi = meta.hi, tol = meta.tol;
+        if (current >= lo && current <= hi) return;   // 已经在最舒服的区间里
+        var dist = current < lo ? lo - current : current - hi;
+        var newDist = Math.max(0.0, dist - needed * tol);
+        target = current < lo ? lo - newDist : hi + newDist;
+        scale = tol;
+      } else {
+        low = meta.low; high = meta.high;
+        if (high === low) return;
+        t = directions[metric] === 'higher'
+          ? low + targetScore * (high - low)
+          : high - targetScore * (high - low);
+        if (meta.log) {
+          low = Math.pow(10, low); high = Math.pow(10, high); target = Math.pow(10, t);
+        } else {
+          target = t;
+        }
+        target = Math.max(low, Math.min(high, target));  // 不外推到样本取值范围之外
+        scale = high - low;
+      }
+
       var delta = Math.abs(target - current);
       moves.push({
         metric: metric,
         current: current,
         target: pyRound(target, 2),
-        relative: pyRound(delta / (high - low), 4)
+        relative: scale ? pyRound(delta / scale, 4) : 0.0
       });
     });
     moves.sort(function (a, b) { return a.relative - b.relative; });
     return moves;
   }
 
-  function sensitivity(items, weights, directions, ranks) {
-    var baseline = scoreItems(items, weights, directions, ranks)[0].item_id;
+  function sensitivity(items, weights, directions, ranks, shapes) {
+    shapes = shapes || {};
+    var baseline = scoreItems(items, weights, directions, ranks, shapes)[0].item_id;
     var trials = 0, flips = [];
     Object.keys(weights).forEach(function (metric) {
       [0.75, 1.25].forEach(function (factor) {
@@ -257,7 +359,7 @@
         Object.keys(weights).forEach(function (m) { perturbed[m] = weights[m]; });
         perturbed[metric] = Number(weights[metric]) * factor;
         trials += 1;
-        var top = scoreItems(items, perturbed, directions, ranks)[0].item_id;
+        var top = scoreItems(items, perturbed, directions, ranks, shapes)[0].item_id;
         if (top !== baseline) flips.push(metric + ' ×' + factor);
       });
     });
@@ -274,6 +376,7 @@
       budget: needs.budget || 0,
       weights: {},
       directions: {},
+      shapes: {},
       hard_rules: [],
       accepted: [],
       rejected: [],
@@ -286,6 +389,7 @@
 
     result.weights = needs.weights;
     result.directions = needs.directions;
+    result.shapes = needs.shapes || {};
     result.hard_rules = needs.hard || [];
 
     var eligible = [];
@@ -301,14 +405,17 @@
     });
 
     if (eligible.length) {
-      result.accepted = scoreItems(eligible, needs.weights, needs.directions, needs.ranks);
+      result.accepted = scoreItems(eligible, needs.weights, needs.directions,
+                                   needs.ranks, needs.shapes || {});
     }
     result.winner = result.accepted[0] || null;
     result.runner_up = result.accepted[1] || null;
     if (result.accepted.length >= 2) {
       result.moves = counterfactual(eligible, result.accepted[0], result.accepted[1],
-                                    needs.weights, needs.directions, needs.ranks);
-      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions, needs.ranks);
+                                    needs.weights, needs.directions, needs.ranks,
+                                    needs.shapes || {});
+      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions,
+                                       needs.ranks, needs.shapes || {});
     }
     return { result: result, errors: [] };
   }

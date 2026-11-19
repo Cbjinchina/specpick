@@ -27,6 +27,32 @@ def _label(metric: str) -> str:
     return METRIC_LABELS.get(metric, metric)
 
 
+def _rule_text(base: str, cfg: dict | None) -> str:
+    """把「方向 + 比法」写成人话：越接近目标 / 对数刻度 / 只按名次。"""
+    if not cfg:
+        return base
+    shape = cfg.get("shape")
+    if shape == "target":
+        lo, hi, tol = cfg.get("lo"), cfg.get("hi"), cfg.get("tol")
+        where = str(lo) if lo == hi else f"{lo}~{hi}"
+        return f"越接近 {where} 越好（偏出 {tol} 记 0 分）"
+    if shape == "log":
+        return base + "（对数刻度）"
+    if shape == "ordinal":
+        return base + "（只按名次）"
+    return base
+
+
+def _scale_text(cfg: dict | None, relative: float) -> str:
+    """改动幅度怎么描述：目标型是「离目标近了多少」，其余是「跨越取值范围多少」。"""
+    pct = f"{relative * 100:.0f}%"
+    if (cfg or {}).get("shape") == "target":
+        return f"往目标靠近容差的 {pct}"
+    if (cfg or {}).get("shape") == "log":
+        return f"在对数刻度上跨越 {pct}"
+    return f"跨越该指标取值范围的 {pct}"
+
+
 def render_decision(r: Result) -> str:
     lines: list[str] = [
         f"# {r.title}",
@@ -37,10 +63,10 @@ def render_decision(r: Result) -> str:
     if r.scene:
         lines += [f"**场景**：{r.scene}", ""]
 
-    lines += ["## 我的需求规格", "", "| 指标 | 方向 | 权重 |", "| --- | --- | --- |"]
+    lines += ["## 我的需求规格", "", "| 指标 | 怎么比 | 权重 |", "| --- | --- | --- |"]
     for metric, weight in r.weights.items():
-        direction = "越大越好" if r.directions.get(metric) == "higher" else "越小越好"
-        lines.append(f"| {_label(metric)} (`{metric}`) | {direction} | {weight} |")
+        base = "越大越好" if r.directions.get(metric) == "higher" else "越小越好"
+        lines.append(f"| {_label(metric)} (`{metric}`) | {_rule_text(base, (r.shapes or {}).get(metric))} | {weight} |")
     lines.append("")
     if r.hard_rules:
         lines += ["**硬性约束**（不满足即淘汰，不参与打分）：", ""]
@@ -78,13 +104,22 @@ def render_decision(r: Result) -> str:
             "",
         ]
         for m in r.moves[:3]:
-            direction = "降到" if r.directions.get(m.metric) == "lower" else "提到"
+            cfg = (r.shapes or {}).get(m.metric) or {}
+            if cfg.get("shape") == "target":
+                verb = "调到"
+            elif cfg.get("shape") == "log":
+                verb = "降到" if r.directions.get(m.metric) == "lower" else "提到"
+            else:
+                verb = "降到" if r.directions.get(m.metric) == "lower" else "提到"
             lines.append(
-                f"- **{_label(m.metric)}** 从 `{m.current:g}` {direction} `{m.target:g}` "
-                f"（跨越该指标取值范围的 {m.relative * 100:.0f}%）即可追平或反超"
+                f"- **{_label(m.metric)}** 从 `{m.current:g}` {verb} `{m.target:g}` "
+                f"（{_scale_text(cfg, m.relative)}）即可追平或反超"
             )
         lines.append("")
-        lines += ["> 这是线性模型的解析解，不是猜测；改多个字段的组合不在 v0 范围内。", ""]
+        lines += [
+            "> 这是按你选的比法解析出来的解，不是猜测；改多个字段的组合不在 v0 范围内。",
+            "",
+        ]
     elif len(r.accepted) >= 2:
         lines += ["## 反事实", "", "单改任一字段都追不上第一名，需要同时调整多个条件。", ""]
 

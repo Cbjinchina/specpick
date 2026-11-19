@@ -132,6 +132,69 @@ def synthetic() -> list[tuple[str, dict, list[dict]]]:
          {"id": "D", "name": "丁", "price": 70, "tier": ""}],
     ))
 
+    out.append((
+        "shape_target_range",
+        {"title": "重量越接近 1.6kg 越好", "budget": 100,
+         "weights": {"price": 1, "weight": 4},
+         "directions": {"price": "lower", "weight": "higher"},
+         "shapes": {"weight": {"shape": "target", "lo": 1.6, "hi": 1.6, "tol": 0.5}}},
+        [{"id": "A", "name": "太轻", "price": 50, "weight": 1.2},
+         {"id": "B", "name": "正好", "price": 55, "weight": 1.6},
+         {"id": "C", "name": "太重", "price": 60, "weight": 2.1}],
+    ))
+
+    out.append((
+        "shape_target_band",
+        {"title": "屏幕落在 6.1~6.5 英寸最舒服", "budget": 9999,
+         "weights": {"screen": 3},
+         "directions": {"screen": "higher"},
+         "shapes": {"screen": {"shape": "target", "lo": 6.1, "hi": 6.5, "tol": 1.0}}},
+        [{"id": "A", "name": "小屏", "price": 100, "screen": 5.4},
+         {"id": "B", "name": "正好", "price": 100, "screen": 6.3},
+         {"id": "C", "name": "大屏", "price": 100, "screen": 6.8},
+         {"id": "D", "name": "没写", "price": 100, "screen": None}],
+    ))
+
+    out.append((
+        "shape_log_volume",
+        {"title": "销量跨度大，按对数比", "budget": 100,
+         "weights": {"price": 1, "sales": 3},
+         "directions": {"price": "lower", "sales": "higher"},
+         "shapes": {"sales": {"shape": "log"}}},
+        [{"id": "A", "name": "小卖家", "price": 50, "sales": 200},
+         {"id": "B", "name": "中卖家", "price": 52, "sales": 5000},
+         {"id": "C", "name": "大卖家", "price": 55, "sales": 120000}],
+    ))
+
+    out.append((
+        "shape_log_nonpositive_fallback",
+        {"title": "有 0 值时对数退回线性", "budget": 100,
+         "weights": {"dmg": 2}, "directions": {"dmg": "higher"},
+         "shapes": {"dmg": {"shape": "log"}}},
+        [{"id": "A", "name": "甲", "price": 10, "dmg": 0},
+         {"id": "B", "name": "乙", "price": 10, "dmg": 50},
+         {"id": "C", "name": "丙", "price": 10, "dmg": 100}],
+    ))
+
+    out.append((
+        "shape_ordinal_outlier",
+        {"title": "一个极端值也不带偏名次", "budget": 100,
+         "weights": {"price": 1, "votes": 3},
+         "directions": {"price": "lower", "votes": "higher"},
+         "shapes": {"votes": {"shape": "ordinal"}}},
+        [{"id": "A", "name": "甲", "price": 50, "votes": 41},
+         {"id": "B", "name": "乙", "price": 50, "votes": 38},
+         {"id": "C", "name": "丙", "price": 50, "votes": 9000}],
+    ))
+
+    out.append((
+        "shape_target_bad_tol",
+        {"title": "区间没给容差", "budget": 100,
+         "weights": {"w": 1}, "directions": {"w": "higher"},
+         "shapes": {"w": {"shape": "target", "lo": 1, "hi": 1, "tol": 0}}},
+        [{"id": "A", "name": "甲", "price": 10, "w": 1}],
+    ))
+
     return out
 
 
@@ -169,13 +232,17 @@ def decide_data(needs: dict, items: list[dict], case_id: str) -> tuple[dict, lis
             eligible.append(item)
 
     ranks = needs.get("ranks")
-    accepted = score_items(eligible, needs["weights"], needs["directions"], ranks) if eligible else []
+    shapes = needs.get("shapes")
+    accepted = (
+        score_items(eligible, needs["weights"], needs["directions"], ranks, shapes)
+        if eligible else []
+    )
     moves: list = []
     sens: dict = {}
     if len(accepted) >= 2:
         moves = counterfactual(eligible, accepted[0], accepted[1],
-                               needs["weights"], needs["directions"], ranks)
-        sens = sensitivity(eligible, needs["weights"], needs["directions"], ranks)
+                               needs["weights"], needs["directions"], ranks, shapes)
+        sens = sensitivity(eligible, needs["weights"], needs["directions"], ranks, shapes)
     return {
         "case_id": case_id,
         "accepted": accepted,

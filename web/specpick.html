@@ -89,6 +89,10 @@ select.pick{max-width:100%;font-size:15px}
 .hrow{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:8px}
 .hrow .full{grid-column:1 / -1}
 .row .rline{margin-top:8px}
+.row .tline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:8px}
+.tline .tg{display:flex;align-items:center;gap:6px;min-width:0}
+.row .tline input{width:74px;min-height:34px;padding:5px 7px;font-size:14px}
+.row .tline .small{white-space:nowrap}
 .row .hint{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.45}
 .item .fields .i-hint{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.35}
 .item .fields .i-hint.warn{color:var(--warn)}
@@ -223,7 +227,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-19 22:42（自动保存 · 删除可撤销 · 报告过期提醒 · 可打印）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-19 23:13（新增四种比法：越接近目标 · 按名次 · 对数刻度）</p>
   <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
@@ -781,6 +785,27 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       });
       if (!OPS[rule.op]) errors.push('不支持的操作符：' + rule.op);
     });
+    var shapes = needs.shapes || {};
+    Object.keys(shapes).forEach(function (metric) {
+      var cfg = shapes[metric] || {};
+      if (!(metric in weights)) {
+        errors.push('shapes.' + metric + ' 没有对应的权重项');
+        return;
+      }
+      if (cfg.shape && SHAPES.indexOf(cfg.shape) === -1) {
+        errors.push('shapes.' + metric + '.shape 只能是 ' + SHAPES.join(' / '));
+      }
+      if (shapeOf(cfg) === 'target') {
+        ['lo', 'hi', 'tol'].forEach(function (key) {
+          if (typeof cfg[key] !== 'number' || !isFinite(cfg[key])) {
+            errors.push('shapes.' + metric + ' 按「越接近越好」算，必须给数字 ' + key);
+          }
+        });
+        if (typeof cfg.tol === 'number' && isFinite(cfg.tol) && cfg.tol <= 0) {
+          errors.push('shapes.' + metric + '.tol 必须大于 0');
+        }
+      }
+    });
     items.forEach(function (item, i) {
       ['id', 'name', 'price'].forEach(function (key) {
         if (!(key in item)) errors.push('第 ' + (i + 1) + ' 个候选缺少 ' + key);
@@ -833,37 +858,96 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     return reasons;
   }
 
-  function boundsOf(values, itemCount) {
-    var nums = values.filter(function (v) { return v !== null; });
-    if (!nums.length) return null;
-    // 只有一件候选有数据：定不出高低，给了它满分等于白送，整项按「比不了」处理
-    if (nums.length < 2 && itemCount > 1) return null;
-    return [Math.min.apply(null, nums), Math.max.apply(null, nums)];
+  /* 四种比法，与 engine.py 的 SHAPES / _make_scorer 一一对应：
+   * span 按范围（默认）· log 对数刻度 · ordinal 按名次 · target 越接近越好 */
+  var SHAPES = ['span', 'log', 'ordinal', 'target'];
+
+  function shapeOf(cfg) {
+    var s = String((cfg && cfg.shape) || 'span');
+    return SHAPES.indexOf(s) === -1 ? 'span' : s;
   }
 
-  function norm(value, low, high, direction) {
-    if (high === low) return 1.0;
-    var ratio = (Number(value) - low) / (high - low);
-    return direction === 'higher' ? ratio : 1.0 - ratio;
+  function makeScorer(values, direction, cfg) {
+    cfg = cfg || {};
+    var shape = shapeOf(cfg);
+    var known = values.filter(function (v) { return v !== null; });
+    if (!known.length) return [null, { shape: shape }];
+
+    if (shape === 'target') {
+      var lo = cfg.lo, hi = cfg.hi, tol = cfg.tol;
+      if (typeof lo !== 'number' || typeof hi !== 'number' || typeof tol !== 'number' ||
+          !isFinite(lo) || !isFinite(hi) || !isFinite(tol)) {
+        return [null, { shape: 'target', bad: true }];
+      }
+      if (lo > hi) { var t0 = lo; lo = hi; hi = t0; }
+      if (tol <= 0) return [null, { shape: 'target', bad: true }];
+      var scoreTarget = function (v) {
+        var d;
+        if (v < lo) d = lo - v;
+        else if (v > hi) d = v - hi;
+        else return 1.0;
+        return Math.max(0.0, 1.0 - d / tol);
+      };
+      // 区间是绝对值，一件有数据也能比，不需要「至少两个点」
+      return [scoreTarget, { shape: 'target', lo: lo, hi: hi, tol: tol }];
+    }
+
+    if (known.length < 2 && values.length > 1) return [null, { shape: shape }];
+
+    if (shape === 'ordinal') {
+      var uniq = [];
+      known.slice().sort(function (a, b) { return a - b; }).forEach(function (v) {
+        if (uniq.indexOf(v) === -1) uniq.push(v);
+      });
+      if (uniq.length < 2) return [function () { return 1.0; }, { shape: 'ordinal', flat: true }];
+      var pos = {};
+      uniq.forEach(function (v, i) { pos[v] = i / (uniq.length - 1); });
+      var scoreOrdinal = function (v) {
+        var r = pos[v];
+        return direction === 'higher' ? r : 1.0 - r;
+      };
+      return [scoreOrdinal, { shape: 'ordinal' }];
+    }
+
+    // 对数是给正数用的。出现 0 / 负数就退回线性，并在 meta 里标明
+    var useLog = shape === 'log' && known.every(function (v) { return v > 0; });
+    var tf = useLog ? Math.log10 : Number;
+    var tvals = values.map(function (v) { return v === null ? null : tf(v); });
+    var low = Math.min.apply(null, tvals.filter(function (x) { return x !== null; }));
+    var high = Math.max.apply(null, tvals.filter(function (x) { return x !== null; }));
+    var scoreSpan = function (v) {
+      if (high === low) return 1.0;
+      var ratio = (tf(v) - low) / (high - low);
+      return direction === 'higher' ? ratio : 1.0 - ratio;
+    };
+    return [scoreSpan, {
+      shape: useLog ? 'log' : 'span',
+      log: useLog,
+      low: low,
+      high: high,
+      log_fallback: shape === 'log' && !useLog
+    }];
   }
 
-  function scoreItems(items, weights, directions, ranks) {
+  function scoreItems(items, weights, directions, ranks, shapes) {
     ranks = ranks || {};
+    shapes = shapes || {};
     var metrics = Object.keys(weights);
-    var values = {}, bounds = {};
+    var values = {}, scorers = {};
     metrics.forEach(function (m) {
       values[m] = items.map(function (it) { return toNum(it[m], ranks[m]); });
-      bounds[m] = boundsOf(values[m], items.length);
+      scorers[m] = makeScorer(values[m], directions[m] || 'higher', shapes[m]);
     });
     var totalW = 0;
-    metrics.forEach(function (m) { if (bounds[m] !== null) totalW += Number(weights[m]); });
+    metrics.forEach(function (m) { if (scorers[m][0] !== null) totalW += Number(weights[m]); });
     var scored = items.map(function (item, idx) {
       var parts = {}, avail = 0, known = 0;
       metrics.forEach(function (m) {
+        var fn = scorers[m][0];
         var weight = Number(weights[m]);
-        var b = bounds[m], v = values[m][idx];
-        if (b === null || v === null) { parts[m] = null; return; }
-        parts[m] = pyRound(weight * norm(v, b[0], b[1], directions[m]), 4);
+        var v = values[m][idx];
+        if (fn === null || v === null) { parts[m] = null; return; }
+        parts[m] = pyRound(weight * fn(v), 4);
         known += parts[m];
         avail += weight;
       });
@@ -887,49 +971,71 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     return scored;
   }
 
-  function counterfactual(items, winner, runnerUp, weights, directions, ranks) {
+  function counterfactual(items, winner, runnerUp, weights, directions, ranks, shapes) {
     ranks = ranks || {};
+    shapes = shapes || {};
     var gap = winner.total - runnerUp.total;
     if (gap <= 0) return [];
     var byId = {};
     items.forEach(function (it) { byId[String(it.id)] = it; });
     var challenger = byId[runnerUp.item_id];
-    var bd = {};
+    var info = {};
     Object.keys(weights).forEach(function (m) {
-      bd[m] = boundsOf(items.map(function (it) { return toNum(it[m], ranks[m]); }), items.length);
+      info[m] = makeScorer(
+        items.map(function (it) { return toNum(it[m], ranks[m]); }),
+        directions[m] || 'higher', shapes[m]);
     });
     var moves = [];
     Object.keys(weights).forEach(function (metric) {
       var weight = Number(weights[metric]);
-      if (weight <= 0) return;
-      var b = bd[metric];
-      if (b === null) return;
-      var low = b[0], high = b[1];
-      if (high === low) return;
+      var fn = info[metric][0], meta = info[metric][1];
+      if (weight <= 0 || fn === null) return;
+      // 名次型的「改到多少」取决于别人改不改，说不清就不说
+      if (meta.shape === 'ordinal') return;
       var current = toNum(challenger[metric], ranks[metric]);
       if (current === null) return;
       var needed = gap / weight;
-      var currentNorm = norm(current, low, high, directions[metric]);
-      var targetNorm = currentNorm + needed;
-      if (targetNorm > 1.0 + 1e-4) return;
-      var target = directions[metric] === 'higher'
-        ? low + targetNorm * (high - low)
-        : high - targetNorm * (high - low);
-      target = Math.max(low, Math.min(high, target));
+      var targetScore = fn(current) + needed;
+      if (targetScore > 1.0 + 1e-4) return;
+
+      var target, scale, low, high, t;
+      if (meta.shape === 'target') {
+        var lo = meta.lo, hi = meta.hi, tol = meta.tol;
+        if (current >= lo && current <= hi) return;   // 已经在最舒服的区间里
+        var dist = current < lo ? lo - current : current - hi;
+        var newDist = Math.max(0.0, dist - needed * tol);
+        target = current < lo ? lo - newDist : hi + newDist;
+        scale = tol;
+      } else {
+        low = meta.low; high = meta.high;
+        if (high === low) return;
+        t = directions[metric] === 'higher'
+          ? low + targetScore * (high - low)
+          : high - targetScore * (high - low);
+        if (meta.log) {
+          low = Math.pow(10, low); high = Math.pow(10, high); target = Math.pow(10, t);
+        } else {
+          target = t;
+        }
+        target = Math.max(low, Math.min(high, target));  // 不外推到样本取值范围之外
+        scale = high - low;
+      }
+
       var delta = Math.abs(target - current);
       moves.push({
         metric: metric,
         current: current,
         target: pyRound(target, 2),
-        relative: pyRound(delta / (high - low), 4)
+        relative: scale ? pyRound(delta / scale, 4) : 0.0
       });
     });
     moves.sort(function (a, b) { return a.relative - b.relative; });
     return moves;
   }
 
-  function sensitivity(items, weights, directions, ranks) {
-    var baseline = scoreItems(items, weights, directions, ranks)[0].item_id;
+  function sensitivity(items, weights, directions, ranks, shapes) {
+    shapes = shapes || {};
+    var baseline = scoreItems(items, weights, directions, ranks, shapes)[0].item_id;
     var trials = 0, flips = [];
     Object.keys(weights).forEach(function (metric) {
       [0.75, 1.25].forEach(function (factor) {
@@ -937,7 +1043,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
         Object.keys(weights).forEach(function (m) { perturbed[m] = weights[m]; });
         perturbed[metric] = Number(weights[metric]) * factor;
         trials += 1;
-        var top = scoreItems(items, perturbed, directions, ranks)[0].item_id;
+        var top = scoreItems(items, perturbed, directions, ranks, shapes)[0].item_id;
         if (top !== baseline) flips.push(metric + ' ×' + factor);
       });
     });
@@ -954,6 +1060,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
       budget: needs.budget || 0,
       weights: {},
       directions: {},
+      shapes: {},
       hard_rules: [],
       accepted: [],
       rejected: [],
@@ -966,6 +1073,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 
     result.weights = needs.weights;
     result.directions = needs.directions;
+    result.shapes = needs.shapes || {};
     result.hard_rules = needs.hard || [];
 
     var eligible = [];
@@ -981,14 +1089,17 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     });
 
     if (eligible.length) {
-      result.accepted = scoreItems(eligible, needs.weights, needs.directions, needs.ranks);
+      result.accepted = scoreItems(eligible, needs.weights, needs.directions,
+                                   needs.ranks, needs.shapes || {});
     }
     result.winner = result.accepted[0] || null;
     result.runner_up = result.accepted[1] || null;
     if (result.accepted.length >= 2) {
       result.moves = counterfactual(eligible, result.accepted[0], result.accepted[1],
-                                    needs.weights, needs.directions, needs.ranks);
-      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions, needs.ranks);
+                                    needs.weights, needs.directions, needs.ranks,
+                                    needs.shapes || {});
+      result.sensitivity = sensitivity(eligible, needs.weights, needs.directions,
+                                       needs.ranks, needs.shapes || {});
     }
     return { result: result, errors: [] };
   }
@@ -1357,10 +1468,18 @@ function doUndo(){
 function normalize(s){
   s.fields = (s.fields||[]).map(function(f){
     var type = (f.type==='text'||f.type==='rank') ? f.type : 'number';
+    var shape = (f.shape==='log'||f.shape==='ordinal'||f.shape==='target') ? f.shape : 'span';
+    if(type !== 'number') shape = 'span';
     var o = {key:String(f.key||'m'),label:String(f.label||f.key||''),
       type:type,
       direction:f.direction==='lower'?'lower':'higher',
+      shape:shape,
       weight:Number(f.weight)||0};
+    if(shape==='target'){
+      var t = f.target || {};
+      var lo = Specpick.toNum(t.lo), hi = Specpick.toNum(t.hi), tol = Specpick.toNum(t.tol);
+      o.target = {lo: lo==null?0:lo, hi: hi==null?0:hi, tol: (tol==null||tol<=0)?1:tol};
+    }
     if(type==='rank') o.ranks = parseRanks(f.ranks);
     if(type==='text') o.weight = 0;
     return o;
@@ -1419,28 +1538,87 @@ function parseRanks(v){
   var arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[,，>＞→\/|]+/);
   return arr.map(function(x){ return String(x).trim(); }).filter(function(x){ return x; });
 }
-function numHint(v){
+function numHint(v, f){
   if(v === '' || v == null) return '没填 → 这项算「没数据」，不倒扣分';
   var n = Specpick.toNum(v);
   if(n == null) return '读不出数字 → 这项算「没数据」，不倒扣分';
+  if(f && f.shape === 'target' && f.target){
+    var lo = f.target.lo, hi = f.target.hi, tol = f.target.tol;
+    if(lo != null && hi != null){
+      if(n >= Math.min(lo, hi) && n <= Math.max(lo, hi)) return n + ' 在区间里 → 满分';
+      var d = n < lo ? lo - n : n - hi;
+      d = Math.round(d * 100) / 100;
+      if(tol > 0) return n + ' 偏出 ' + d + (d >= tol ? ' → 超出容差，0 分' : '，要扣分');
+    }
+  }
+  if(f && f.shape === 'log') return '按 ' + n + ' 的对数比';
+  if(f && f.shape === 'ordinal') return '按 ' + n + ' 的名次比';
   return '按 ' + n + ' 计分';
+}
+/* 「怎么比」：一个下拉说清 类型 + 方向 + 比法。
+ * 原来只有「越大越好 / 越小越好」两种，像重量、尺寸、距离这种
+ * 「太轻太重都不好」的项根本表达不出来，只能硬塞进单调的模型里。 */
+var RULES = [
+  {v:'number|higher|span',    t:'数字 · 越大越好'},
+  {v:'number|lower|span',     t:'数字 · 越小越好'},
+  {v:'number|higher|target',  t:'数字 · 越接近目标越好'},
+  {v:'number|higher|ordinal', t:'数字 · 按名次（不看差多少）'},
+  {v:'number|higher|log',     t:'数字 · 越大越好（对数刻度）'},
+  {v:'number|lower|log',      t:'数字 · 越小越好（对数刻度）'},
+  {v:'rank|higher|span',      t:'档位 · 按顺序打分'},
+  {v:'text|higher|span',      t:'文字 · 只筛选，不打分'}
+];
+function ruleValue(f){
+  var shape = (f.type==='number' && f.shape) ? f.shape : 'span';
+  var dir = (f.type==='number' && f.direction==='lower') ? 'lower' : 'higher';
+  return f.type + '|' + dir + '|' + shape;
+}
+function numText(v){ return (v===null || v===undefined) ? '' : String(v); }
+/* 切到「越接近目标」时，先从现有数据估一个区间填进去，总比让人对着三个空格发呆好 */
+function ensureTarget(f){
+  if(f.target && f.target.lo!=null && f.target.hi!=null && f.target.tol>0) return;
+  var nums = state.items.map(function(it){ return Specpick.toNum(it[f.key]); })
+    .filter(function(n){ return n!=null; }).sort(function(a,b){ return a-b; });
+  if(!nums.length){ f.target = {lo:0, hi:0, tol:1}; return; }
+  var mid = nums[Math.floor((nums.length-1)/2)];
+  var span = nums[nums.length-1] - nums[0];
+  f.target = {lo: Math.round(mid*100)/100, hi: Math.round(mid*100)/100,
+              tol: Math.round(span*100)/100 || 1};
 }
 function renderFields(){
   $('#fields').innerHTML = state.fields.map(function(f,i){
     var isText = f.type === 'text';
-    var dirSel = f.type === 'rank'
-      ? '<select class="f-dir" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的方向（档位固定越高越好）" disabled>'+
-        '<option value="higher" selected>档位越高越好</option></select>'
-      : '<select class="f-dir" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的方向">'+
-        '<option value="higher"'+(f.direction==='higher'?' selected':'')+'>越大越好</option>'+
-        '<option value="lower"'+(f.direction==='lower'?' selected':'')+'>越小越好</option></select>';
+    var cur = ruleValue(f);
+    var ruleSel = '<select class="full f-rule" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 怎么比">'+
+      RULES.map(function(r){
+        return '<option value="'+r.v+'"'+(r.v===cur?' selected':'')+'>'+r.t+'</option>';
+      }).join('')+'</select>';
     var extra = '';
-    if(f.type === 'rank'){
+    if(f.shape === 'target'){
+      var t = f.target || {};
+      extra = '<div class="tline">'+
+          '<span class="tg"><span class="small">最舒服</span>'+
+          '<input class="f-tlo" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的区间下限" '+
+            'type="text" inputmode="decimal" placeholder="低" value="'+esc(numText(t.lo))+'">'+
+          '<span class="small">到</span>'+
+          '<input class="f-thi" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的区间上限" '+
+            'type="text" inputmode="decimal" placeholder="高" value="'+esc(numText(t.hi))+'"></span>'+
+          '<span class="tg"><span class="small">偏出</span>'+
+          '<input class="f-ttol" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的容差" '+
+            'type="text" inputmode="decimal" placeholder="容差" value="'+esc(numText(t.tol))+'">'+
+          '<span class="small">就不给分</span></span></div>'+
+        '<div class="hint">区间内满分，越往外扣得越多，偏出这个数就是 0 分。重量、尺寸、距离、噪音这种「两头都不好」的项用这个；上下限填成一样就是「越接近某个值越好」。</div>';
+    }else if(f.type === 'rank'){
       extra = '<div class="rline"><input class="full f-ranks" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的档位顺序（从低到高）" '+
         'placeholder="从低到高排，用逗号分隔，如：低, 中, 高" value="'+esc(rankList(f).join(', '))+'">'+
         '<div class="hint">候选里会变成下拉框，越靠后分越高。适合「做工」「噪音」「手感」这种只能分档的项。</div></div>';
     }else if(f.type === 'number'){
       extra = '<div class="hint">候选框里可以贴原文：<code>8GB GDDR7</code>、<code>跑分 28000</code>、<code>1.2万</code>，自动抽数字。</div>';
+      if(f.shape === 'log'){
+        extra += '<div class="hint">对数刻度：销量 200 对 12 万这种跨度，不会把小值全压成 0。适合销量、评价数、粉丝数。</div>';
+      }else if(f.shape === 'ordinal'){
+        extra += '<div class="hint">按名次：第一名满分、最后一名 0 分，中间按名次排。一个极端值不会把其余候选全打成 0。</div>';
+      }
     }else{
       extra = '<div class="hint">文字不参与打分，只用来做筛选条件或在报告里展示。</div>';
     }
@@ -1450,11 +1628,7 @@ function renderFields(){
       '<div class="grid">'+
         '<input class="full f-label" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的名称" '+
           'placeholder="名称，如：性能 / 重量" value="'+esc(f.label)+'">'+
-        '<select class="f-type" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的打分方式">'+
-          '<option value="number"'+(f.type==='number'?' selected':'')+'>数字 · 打分</option>'+
-          '<option value="rank"'+(f.type==='rank'?' selected':'')+'>档位 · 打分</option>'+
-          '<option value="text"'+(f.type==='text'?' selected':'')+'>文字 · 筛选</option></select>'+
-        dirSel+
+        ruleSel+
       '</div>'+ extra +
       '<div class="wline"><span class="small">权重</span>'+
         '<input type="range" class="f-weight" data-i="'+i+'" aria-label="比较项 '+(i+1)+' 的权重" '+
@@ -1494,7 +1668,7 @@ function renderItems(){
         return '<div>'+head+'<select class="i-field" id="'+fid+'" data-i="'+i+'" data-key="'+esc(f.key)+'">'+opts+'</select></div>';
       }
       if(f.type === 'number'){
-        var hint = numHint(raw);
+        var hint = numHint(raw, f);
         var bad = (raw !== '' && Specpick.toNum(raw) == null);
         return '<div>'+head+
           '<input class="i-field" id="'+fid+'" data-i="'+i+'" data-key="'+esc(f.key)+'" type="text" inputmode="decimal" '+
@@ -1853,8 +2027,17 @@ function buildCase(){
                 weights:{}, directions:{}, hard:[] };
   var ranks = {};
   if(state.priceWeight>0){ needs.weights.price = state.priceWeight; needs.directions.price = 'lower'; }
+  var shapes = {};
   state.fields.forEach(function(f){
     if(f.type === 'rank') ranks[f.key] = rankList(f);  // 权重 0 时硬要求也要认档位词
+    if(f.weight>0 && f.type==='number' && f.shape && f.shape!=='span'){
+      var cfg = {shape:f.shape};
+      if(f.shape === 'target'){
+        var t = f.target || {};
+        cfg.lo = Number(t.lo); cfg.hi = Number(t.hi); cfg.tol = Number(t.tol);
+      }
+      shapes[f.key] = cfg;
+    }
     if(f.weight>0 && f.type==='number'){
       needs.weights[f.key] = f.weight;
       needs.directions[f.key] = f.direction;
@@ -1865,6 +2048,7 @@ function buildCase(){
     }
   });
   if(Object.keys(ranks).length) needs.ranks = ranks;
+  if(Object.keys(shapes).length) needs.shapes = shapes;
   state.hard.forEach(function(h){ needs.hard.push({field:h.field,op:h.op,value:h.value,label:h.label||h.field}); });
   var items = state.items.map(function(it){
     var o = {id:it.id,name:it.name,price:it.price};
@@ -1886,6 +2070,47 @@ function lab(key){
   var f = state.fields.filter(function(x){return x.key===key;})[0];
   return map[key] || (f && f.label) || (key==='price'?'价格':key);
 }
+/* 一项用的是哪种比法，说人话。返回空串 = 就是普通的「越大/越小」，不用特意解释 */
+function shapeNote(f){
+  if(!f || !f.shape || f.shape === 'span') return '';
+  var t = f.target || {};
+  if(f.shape === 'target'){
+    var where = (t.lo === t.hi) ? ('最舒服 '+t.lo) : ('最舒服 '+t.lo+' ~ '+t.hi);
+    return where+'，偏出 '+t.tol+' 就不给分';
+  }
+  if(f.shape === 'log'){
+    var bad = state.items.some(function(it){
+      var n = Specpick.toNum(it[f.key]);
+      return n != null && n <= 0;
+    });
+    return '按对数刻度比' + (bad ? '（候选里有 0 或负数，这项退回线性）' : '');
+  }
+  if(f.shape === 'ordinal') return '只看名次，不看差多少';
+  return '';
+}
+function shapeNotes(r){
+  var out = [];
+  Object.keys(r.weights).forEach(function(m){
+    if(m === 'price') return;
+    var f = state.fields.filter(function(x){ return x.key===m; })[0];
+    var t = shapeNote(f);
+    if(t) out.push('「'+lab(m)+'」'+t);
+  });
+  return out;
+}
+/* 需求规格那一列怎么写：越接近目标 / 对数 / 名次 都要能一眼看出来 */
+function ruleText(m, r){
+  var base = (r && r.directions && r.directions[m]==='lower') ? '越小越好' : '越大越好';
+  var f = state.fields.filter(function(x){ return x.key===m; })[0];
+  if(!f || !f.shape || f.shape === 'span') return base;
+  if(f.shape === 'target'){
+    var t = f.target || {};
+    return '越接近 '+(t.lo === t.hi ? t.lo : (t.lo+'~'+t.hi))+' 越好';
+  }
+  if(f.shape === 'log') return base+'（对数）';
+  if(f.shape === 'ordinal') return base+'（只按名次）';
+  return base;
+}
 /* 每个比较项在候选里到底有几件填得出数字（用来解释「无数据」和「比不了」） */
 function metricFills(r){
   var out = {};
@@ -1906,9 +2131,11 @@ function missingNotes(r){
   var fills = metricFills(r), notes = [];
   Object.keys(r.weights).forEach(function(m){
     var c = fills[m] || {has:0, total:0};
+    var mf = state.fields.filter(function(x){ return x.key===m; })[0];
+    var isTarget = !!(mf && mf.shape === 'target');
     if(c.total > 1 && c.has === 0){
       notes.push('「'+lab(m)+'」一件都没填到数字，整项没参与打分');
-    }else if(c.total > 1 && c.has === 1){
+    }else if(c.total > 1 && c.has === 1 && !isTarget){
       notes.push('「'+lab(m)+'」只有 1 件填了数据 —— 一个点定不出高低，这项对所有人都不算分');
     }else if(c.has < c.total){
       var lack = [];
@@ -1930,7 +2157,8 @@ function decisiveMetrics(r){
   var pool = c.items.filter(function(it){ return ids[String(it.id)]; });
   var ranks = c.needs.ranks || {};
   function order(w){
-    return Specpick.scoreItems(pool, w, r.directions, ranks).map(function(s){ return s.item_id; });
+    return Specpick.scoreItems(pool, w, r.directions, ranks, c.needs.shapes || {})
+      .map(function(s){ return s.item_id; });
   }
   var base = order(r.weights), flip = [], mute = [];
   ms.forEach(function(m){
@@ -1982,6 +2210,10 @@ function renderReport(res){
       html += '<td><b>'+fmt(s.total)+'</b></td></tr>';
     });
     html += '</table></div>';
+    var sn = shapeNotes(r);
+    if(sn.length){
+      html += '<div class="small">这几项不是按「越大/越小」算的：'+sn.map(esc).join('；')+'。</div>';
+    }
     // 谁没数据、哪一项根本比不了，说清楚，别让人对着「无数据」猜
     var notes = missingNotes(r);
     if(notes.length){
@@ -2004,7 +2236,7 @@ function renderReport(res){
       html += '<li><b>'+esc(lab(m.metric))+'</b> 从 '+esc(m.current)+' '+dir+' '+esc(m.target)+
         '（跨越该指标范围的 '+Math.round(m.relative*100)+'%）</li>';
     });
-    html += '</ul><div class="small">线性模型的解析解，不是猜测。对 8G/16G 这类离散规格，中间值现实中可能并不存在。</div>';
+    html += '</ul><div class="small">按你选的比法直接解出来的，不是猜测。对 8G/16G 这类离散规格，中间值现实中可能并不存在。</div>';
   }else if(r.accepted.length>=2){
     html += '<div class="sec">第二名要怎样才会赢</div><div class="small">单改任一条件都追不上，需要同时调整多个条件。</div>';
   }
@@ -2019,7 +2251,7 @@ function renderReport(res){
     var names = function(list){ return list.map(lab).join('、'); };
     html += '<div class="sec">真正决定胜负的是哪几项</div><div class="small">';
     if(dec.flip.length){
-      html += '把 '+dec.total+' 项逐个删掉重算，删掉 <b>'+esc(names(dec.flip))+'</b> 里的任何一项，冠军就换人 &mdash;&mdash; '+
+      html += '把 '+dec.total+' 项逐个删掉重算，只要少了 <b>'+esc(names(dec.flip))+'</b> 其中一项，冠军就换人 &mdash;&mdash; '+
         '这几项才是真正在决定结果，其余的只是在陪跑。<br>';
     }else{
       html += '把 '+dec.total+' 项逐个删掉重算，删掉任何一项冠军都不变。<br>';
@@ -2042,11 +2274,13 @@ function renderReport(res){
 function markdown(r){
   var L = ['# '+r.title,'','> 案例 `'+r.case_id+'` · 预算 ¥'+r.budget+' · specpick 网页版生成，可复现',''];
   if(r.scene) L = L.concat(['**场景**：'+r.scene,'']);
-  L = L.concat(['## 我的需求规格','','| 指标 | 方向 | 权重 |','| --- | --- | --- |']);
+  L = L.concat(['## 我的需求规格','','| 指标 | 怎么比 | 权重 |','| --- | --- | --- |']);
   Object.keys(r.weights).forEach(function(m){
-    L.push('| '+lab(m)+' (`'+m+'`) | '+(r.directions[m]==='higher'?'越大越好':'越小越好')+' | '+r.weights[m]+' |');
+    L.push('| '+lab(m)+' (`'+m+'`) | '+ruleText(m, r)+' | '+r.weights[m]+' |');
   });
   L.push('');
+  var mdShapes = shapeNotes(r);
+  if(mdShapes.length) L = L.concat(['**比法说明**：'+mdShapes.join('；')+'。','']);
   var hasRank = false;
   state.fields.forEach(function(f){
     if(f.type==='rank' && f.weight>0){
@@ -2100,7 +2334,7 @@ function markdown(r){
         (r.directions[m.metric]==='lower'?'降到':'提到')+' `'+m.target+'` '+
         '（跨越该指标取值范围的 '+Math.round(m.relative*100)+'%）即可追平或反超');
     });
-    L = L.concat(['','> 这是线性模型的解析解，不是猜测；改多个字段的组合不在 v0 范围内。','']);
+    L = L.concat(['','> 这是按你选的比法解出来的，不是猜测；改多个字段的组合不在 v0 范围内。','']);
   }
   if(r.sensitivity && r.sensitivity.trials){
     var s = r.sensitivity;
@@ -2136,6 +2370,15 @@ function toToml(){
     L = L.concat(['','# 档位顺序：从低到高，候选填其中一个词']);
     L.push('[ranks]');
     Object.keys(n.ranks).forEach(function(k){ L.push(k+' = '+tVal(n.ranks[k])); });
+  }
+  if(n.shapes){
+    Object.keys(n.shapes).forEach(function(k){
+      var c = n.shapes[k];
+      var why = c.shape==='target' ? '越接近 '+(c.lo===c.hi ? c.lo : (c.lo+'~'+c.hi))+' 越好，偏出 '+c.tol+' 不给分'
+        : c.shape==='log' ? '对数刻度' : '只按名次';
+      L = L.concat(['','# '+k+' 的比法：'+why,'[shapes.'+k+']','shape = '+tStr(c.shape)]);
+      if(c.shape==='target') L = L.concat(['lo = '+c.lo,'hi = '+c.hi,'tol = '+c.tol]);
+    });
   }
   n.hard.forEach(function(h){
     L = L.concat(['','[[hard]]','field = '+tStr(h.field),'op = '+tStr(h.op),
@@ -2218,14 +2461,22 @@ function sync(){
     var list = parseRanks(el.value);
     f.ranks = list.length ? list : ['低','中','高'];
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.f-type'),function(el){
+  Array.prototype.forEach.call(document.querySelectorAll('.f-rule'),function(el){
     var f = state.fields[+el.dataset.i];
-    f.type = el.value;
+    var p = String(el.value).split('|');
+    f.type = (p[0]==='rank'||p[0]==='text') ? p[0] : 'number';
+    f.direction = (f.type==='number' && p[1]==='lower') ? 'lower' : 'higher';
+    var shape = p[2] || 'span';
+    f.shape = (f.type==='number' && (shape==='log'||shape==='ordinal'||shape==='target'))
+      ? shape : 'span';
     if(f.type === 'rank' && (!f.ranks || !f.ranks.length)) f.ranks = ['低','中','高'];
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.f-dir'),function(el){
+  Array.prototype.forEach.call(document.querySelectorAll('.f-tlo,.f-thi,.f-ttol'),function(el){
     var f = state.fields[+el.dataset.i];
-    f.direction = f.type==='rank' ? 'higher' : el.value;
+    f.target = f.target || {};
+    var n = Specpick.toNum(el.value);
+    var key = el.classList.contains('f-tlo') ? 'lo' : (el.classList.contains('f-thi') ? 'hi' : 'tol');
+    if(n != null) f.target[key] = n;
   });
   Array.prototype.forEach.call(document.querySelectorAll('.f-weight'),function(el){
     var f = state.fields[+el.dataset.i];
@@ -2327,25 +2578,39 @@ $('#formCard').addEventListener('input', function(e){
     var sp = e.target.parentNode.querySelector('.i-hint');
     if(sp){
       var raw = e.target.value;
-      sp.textContent = numHint(raw);
+      var key = e.target.dataset.key;
+      var hf = state.fields.filter(function(x){ return x.key === key; })[0];
+      sp.textContent = numHint(raw, hf);
       sp.className = 'i-hint' + ((raw !== '' && Specpick.toNum(raw) == null) ? ' warn' : '');
     }
   }
   autoSave();
 });
 $('#formCard').addEventListener('change', function(e){
-  if(e.target.classList.contains('f-type')){
+  if(e.target.classList.contains('f-rule')){
+    var fi = +e.target.dataset.i;
+    var prevType = state.fields[fi].type;
     sync();
-    var f = state.fields[+e.target.dataset.i];
-    // 换类型时旧值不再适用（数字 ↔ 档位 不是一回事），清掉免得算错
-    state.items.forEach(function(it){ it[f.key] = (f.type === 'number' ? null : ''); });
+    var f = state.fields[fi];
+    // 只换了方向或比法：值还是那个数字，别清空；真换了类型（数字↔档位）才清
+    if(f.type !== prevType){
+      state.items.forEach(function(it){ it[f.key] = (f.type === 'number' ? null : ''); });
+    }
     if(f.type === 'rank' && !f.weight) f.weight = 3;
     if(f.type === 'text') f.weight = 0;
+    // 从「文字·只筛选」切回来时权重已经被清成 0，给个正常默认值，免得悄悄不参与打分
+    if(prevType === 'text' && f.type !== 'text' && !f.weight) f.weight = 3;
+    if(f.shape === 'target') ensureTarget(f);
     renderForm(); save(); run(true);
     return;
   }
   if(e.target.classList.contains('f-ranks')){
     sync(); renderForm(); save(); run(true);
+    return;
+  }
+  if(e.target.classList.contains('f-tlo') || e.target.classList.contains('f-thi') ||
+     e.target.classList.contains('f-ttol')){
+    sync(); save(); run(true);
     return;
   }
 });
@@ -2372,7 +2637,7 @@ $('#formCard').addEventListener('click', function(e){
 $('#btnAddField').onclick = function(){
   sync();
   var k = nextKey();
-  state.fields.push({key:k,label:'新比较项',type:'number',direction:'higher',weight:3});
+  state.fields.push({key:k,label:'新比较项',type:'number',direction:'higher',shape:'span',weight:3});
   state.items.forEach(function(it){ it[k] = null; });
   renderForm(); save(); run(true);
 };

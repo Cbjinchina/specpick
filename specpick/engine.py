@@ -6,11 +6,12 @@
 
 from __future__ import annotations
 
+import math
 import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 Number = int | float
 
@@ -88,6 +89,7 @@ class Result:
     budget: Number
     weights: dict[str, Number]
     directions: dict[str, str]
+    shapes: dict[str, dict[str, Any]]
     hard_rules: list[dict[str, Any]]
     accepted: list[Scored] = field(default_factory=list)
     rejected: list[Rejection] = field(default_factory=list)
@@ -137,6 +139,21 @@ def validate_case(needs: dict[str, Any], items: list[dict[str, Any]]) -> list[st
                 errors.append(f"hard 规则缺少 {key}")
         if rule.get("op") not in OPS:
             errors.append(f"不支持的操作符：{rule.get('op')}")
+    for metric, cfg in (needs.get("shapes") or {}).items():
+        if metric not in weights:
+            errors.append(f"shapes.{metric} 没有对应的权重项")
+            continue
+        shape = _shape_of(cfg)
+        if (cfg or {}).get("shape") and (cfg or {}).get("shape") not in SHAPES:
+            errors.append(f"shapes.{metric}.shape 只能是 {' / '.join(SHAPES)}")
+        if shape == "target":
+            for key in ("lo", "hi", "tol"):
+                v = (cfg or {}).get(key)
+                if not isinstance(v, (int, float)) or isinstance(v, bool):
+                    errors.append(f"shapes.{metric} 按「越接近越好」算，必须给数字 {key}")
+            tol = (cfg or {}).get("tol")
+            if isinstance(tol, (int, float)) and not isinstance(tol, bool) and tol <= 0:
+                errors.append(f"shapes.{metric}.tol 必须大于 0")
     for i, item in enumerate(items):
         for key in ("id", "name", "price"):
             if key not in item:
@@ -235,28 +252,92 @@ def hard_reasons(item: dict[str, Any], needs: dict[str, Any]) -> list[str]:
     return reasons
 
 
-def _bounds(
-    item_values: list[float | None],
-) -> tuple[float, float] | None:
-    """只用真正有数据的候选定取值范围。
+# 「同一个数字怎么比」的四种比法。默认 span：按这批候选里的最高最低拉一条线。
+#   span    按范围     最高分 1、最低分 0，中间按比例（现在的默认）
+#   log     对数刻度   跨度很大时（销量 200 对 12 万）不把小的全压成 0
+#   ordinal 按名次     只看谁比谁强，不看强多少，一个极端值也带不偏
+#   target  越接近越好 有个最舒服的区间，两头都扣分（重量、尺寸、距离）
+SHAPES = ("span", "log", "ordinal", "target")
 
-    返回 None 表示这一项比不了，对所有人都不计分：
-    - 一件都没数据；
-    - 多件候选里只有一件有数据 —— 只有一个点，定不出「高低」，给了它满分等于白送。
+
+def _shape_of(cfg: dict[str, Any] | None) -> str:
+    s = str((cfg or {}).get("shape") or "span")
+    return s if s in SHAPES else "span"
+
+
+def _make_scorer(
+    values: list[float | None], direction: str, cfg: dict[str, Any] | None
+) -> tuple[Callable[[float], float] | None, dict[str, Any]]:
+    """造这一项的计分器。返回 (score, meta)。
+
+    score 为 None 表示这项对所有人都不算分（没数据 / 一个点定不出高低）。
+    meta 里带上形状和边界，反事实求解要用它把「要提多少分」换算回「要改到多少」。
     """
-    known = [v for v in item_values if v is not None]
+    cfg = cfg or {}
+    shape = _shape_of(cfg)
+    known = [v for v in values if v is not None]
     if not known:
-        return None
-    if len(known) < 2 and len(item_values) > 1:
-        return None
-    return min(known), max(known)
+        return None, {"shape": shape}
 
+    if shape == "target":
+        try:
+            lo, hi, tol = float(cfg["lo"]), float(cfg["hi"]), float(cfg["tol"])
+        except (KeyError, TypeError, ValueError):
+            return None, {"shape": "target", "bad": True}
+        if lo > hi:
+            lo, hi = hi, lo
+        if tol <= 0:
+            return None, {"shape": "target", "bad": True}
 
-def _norm(value: Number, low: float, high: float, direction: str) -> float:
-    if high == low:
-        return 1.0
-    ratio = (float(value) - low) / (high - low)
-    return ratio if direction == "higher" else 1.0 - ratio
+        def score_target(v: float) -> float:
+            if v < lo:
+                d = lo - v
+            elif v > hi:
+                d = v - hi
+            else:
+                return 1.0
+            return max(0.0, 1.0 - d / tol)
+
+        # 区间是绝对值，一件有数据也能比，不需要「至少两个点」
+        return score_target, {"shape": "target", "lo": lo, "hi": hi, "tol": tol}
+
+    if len(known) < 2 and len(values) > 1:
+        return None, {"shape": shape}
+
+    if shape == "ordinal":
+        ranks = sorted(set(known))
+        if len(ranks) < 2:
+            # 大家一样：定不出名次，但也不能因此把这一项判成「没数据」
+            return (lambda v: 1.0), {"shape": "ordinal", "flat": True}
+        pos = {v: i / (len(ranks) - 1) for i, v in enumerate(ranks)}
+
+        def score_ordinal(v: float) -> float:
+            r = pos[v]
+            return r if direction == "higher" else 1.0 - r
+
+        return score_ordinal, {"shape": "ordinal"}
+
+    # 对数是给正数用的。出现 0 / 负数就退回线性，并在 meta 里标明，好让报告解释
+    use_log = shape == "log" and all(v > 0 for v in known)
+    tf: Callable[[float], float] = (lambda v: math.log10(v)) if use_log else float
+    tvals = [tf(v) if v is not None else None for v in values]
+    low = min(x for x in tvals if x is not None)
+    high = max(x for x in tvals if x is not None)
+
+    def score_span(v: float) -> float:
+        if high == low:
+            return 1.0
+        ratio = (tf(v) - low) / (high - low)
+        return ratio if direction == "higher" else 1.0 - ratio
+
+    return score_span, {
+        "shape": "log" if use_log else "span",
+        "log": use_log,
+        "low": low,
+        "high": high,
+        "log_fallback": shape == "log" and not use_log,
+    }
+
 
 
 def score_items(
@@ -264,6 +345,7 @@ def score_items(
     weights: dict[str, Number],
     directions: dict[str, str],
     ranks: dict[str, list[str]] | None = None,
+    shapes: dict[str, dict[str, Any]] | None = None,
 ) -> list[Scored]:
     """按权重打分。
 
@@ -271,23 +353,27 @@ def score_items(
     也就是「这项不知道，就只按我知道的评」。
     """
     ranks = ranks or {}
+    shapes = shapes or {}
     metrics = list(weights)
     values = {m: [to_num(it.get(m), ranks.get(m)) for it in items] for m in metrics}
-    bounds = {m: _bounds(values[m]) for m in metrics}
+    scorers = {
+        m: _make_scorer(values[m], directions.get(m, "higher"), shapes.get(m))
+        for m in metrics
+    }
     # 比不了的项（没数据 / 只有一个人有）对整个评分体系都不算权重，否则会把别的项放大
-    total_w = sum(float(weights[m]) for m in metrics if bounds[m] is not None)
+    total_w = sum(float(weights[m]) for m in metrics if scorers[m][0] is not None)
     scored: list[Scored] = []
     for idx, item in enumerate(items):
         parts: dict[str, float | None] = {}
         avail = 0.0
         for metric in metrics:
+            fn = scorers[metric][0]
             weight = float(weights[metric])
-            b = bounds[metric]
             v = values[metric][idx]
-            if b is None or v is None:
+            if fn is None or v is None:
                 parts[metric] = None
                 continue
-            parts[metric] = round(weight * _norm(v, b[0], b[1], directions[metric]), 4)
+            parts[metric] = round(weight * fn(v), 4)
             avail += weight
         known = sum(p for p in parts.values() if p is not None)
         if avail <= 0:
@@ -316,46 +402,72 @@ def counterfactual(
     weights: dict[str, Number],
     directions: dict[str, str],
     ranks: dict[str, list[str]] | None = None,
+    shapes: dict[str, dict[str, Any]] | None = None,
 ) -> list[Move]:
     """解析求解：只改一个字段，最少要改到多少才能反超。"""
     ranks = ranks or {}
+    shapes = shapes or {}
     gap = winner.total - runner_up.total
     if gap <= 0:
         return []
     by_id = {str(it["id"]): it for it in items}
     challenger = by_id[runner_up.item_id]
-    bounds = {m: _bounds([to_num(it.get(m), ranks.get(m)) for it in items]) for m in weights}
+    info = {
+        m: _make_scorer(
+            [to_num(it.get(m), ranks.get(m)) for it in items],
+            directions.get(m, "higher"),
+            shapes.get(m),
+        )
+        for m in weights
+    }
     moves: list[Move] = []
     for metric, weight in weights.items():
         w = float(weight)
-        if w <= 0:
+        fn, meta = info[metric]
+        if w <= 0 or fn is None:
             continue
-        b = bounds[metric]
-        if b is None:
-            continue
-        low, high = b
-        if high == low:
+        if meta.get("shape") == "ordinal":
+            # 名次型的「改到多少」取决于别人改不改，说不清就不说
             continue
         current = to_num(challenger.get(metric), ranks.get(metric))
         if current is None:
             continue  # 这件候选本来就没填，谈不上「改到多少」
         needed = gap / w  # 归一化分数需要提高的量
-        current_norm = _norm(current, low, high, directions[metric])
-        target_norm = current_norm + needed
-        if target_norm > 1.0 + 1e-4:
+        target_score = fn(current) + needed
+        if target_score > 1.0 + 1e-4:
             continue  # 单改这个字段也追不上
-        if directions[metric] == "higher":
-            target = low + target_norm * (high - low)
+
+        if meta.get("shape") == "target":
+            lo, hi, tol = meta["lo"], meta["hi"], meta["tol"]
+            if lo <= current <= hi:
+                continue  # 已经在最舒服的区间里，再改也加不了分
+            dist = (lo - current) if current < lo else (current - hi)
+            new_dist = max(0.0, dist - needed * tol)
+            target = (lo - new_dist) if current < lo else (hi + new_dist)
+            scale = tol
         else:
-            target = high - target_norm * (high - low)
-        target = max(low, min(high, target))  # 不外推到样本取值范围之外
+            low, high = meta["low"], meta["high"]
+            if high == low:
+                continue
+            if directions.get(metric) == "higher":
+                t = low + target_score * (high - low)
+            else:
+                t = high - target_score * (high - low)
+            if meta.get("log"):
+                low, high = 10 ** low, 10 ** high
+                target = 10 ** t
+            else:
+                target = t
+            target = max(low, min(high, target))  # 不外推到样本取值范围之外
+            scale = high - low
+
         delta = abs(target - current)
         moves.append(
             Move(
                 metric=metric,
                 current=current,
                 target=round(target, 2),
-                relative=round(delta / (high - low), 4),
+                relative=round(delta / scale, 4) if scale else 0.0,
             )
         )
     moves.sort(key=lambda m: m.relative)
@@ -367,9 +479,11 @@ def sensitivity(
     weights: dict[str, Number],
     directions: dict[str, str],
     ranks: dict[str, list[str]] | None = None,
+    shapes: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """每个权重 ±25%，看第一名会不会换人。"""
-    baseline = score_items(items, weights, directions, ranks)[0].item_id
+    shapes = shapes or {}
+    baseline = score_items(items, weights, directions, ranks, shapes)[0].item_id
     trials = 0
     flips: list[str] = []
     for metric, original in weights.items():
@@ -377,7 +491,7 @@ def sensitivity(
             perturbed = dict(weights)
             perturbed[metric] = float(original) * factor
             trials += 1
-            top = score_items(items, perturbed, directions, ranks)[0].item_id
+            top = score_items(items, perturbed, directions, ranks, shapes)[0].item_id
             if top != baseline:
                 flips.append(f"{metric} ×{factor}")
     if not flips:
@@ -400,6 +514,7 @@ def decide(case_dir: Path) -> tuple[Result, list[str]]:
             budget=needs.get("budget", 0),
             weights={},
             directions={},
+            shapes={},
             hard_rules=[],
         ), errors
 
@@ -412,8 +527,9 @@ def decide(case_dir: Path) -> tuple[Result, list[str]]:
         else:
             eligible.append(item)
 
+    shapes = needs.get("shapes") or {}
     accepted = (
-        score_items(eligible, needs["weights"], needs["directions"], needs.get("ranks"))
+        score_items(eligible, needs["weights"], needs["directions"], needs.get("ranks"), shapes)
         if eligible else []
     )
     moves: list[Move] = []
@@ -421,10 +537,10 @@ def decide(case_dir: Path) -> tuple[Result, list[str]]:
     if len(accepted) >= 2:
         moves = counterfactual(
             eligible, accepted[0], accepted[1],
-            needs["weights"], needs["directions"], needs.get("ranks"),
+            needs["weights"], needs["directions"], needs.get("ranks"), shapes,
         )
         sens = sensitivity(
-            eligible, needs["weights"], needs["directions"], needs.get("ranks"),
+            eligible, needs["weights"], needs["directions"], needs.get("ranks"), shapes,
         )
 
     return (
@@ -435,6 +551,7 @@ def decide(case_dir: Path) -> tuple[Result, list[str]]:
             budget=needs["budget"],
             weights=needs["weights"],
             directions=needs["directions"],
+            shapes=shapes,
             hard_rules=needs.get("hard", []),
             accepted=accepted,
             rejected=rejected,
