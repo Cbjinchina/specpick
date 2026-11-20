@@ -33,6 +33,7 @@ h1{font-size:21px;margin:0 0 4px;font-weight:600}
 .n{width:22px;height:22px;border-radius:50%;background:var(--accent-bg);color:var(--accent);
   font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
 .tip{font-size:12px;color:var(--muted);margin:-4px 0 12px;line-height:1.5}
+.tip.empty{border:1px dashed var(--line);border-radius:10px;padding:14px;margin:0 0 12px;text-align:center}
 label.f{display:block;font-size:12px;color:var(--muted);margin:0 0 4px}
 input,select,textarea{font:16px/1.4 inherit;font-family:inherit;color:var(--text);
   background:var(--card);border:1px solid var(--line);border-radius:9px;
@@ -227,7 +228,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-19 23:13（新增四种比法：越接近目标 · 按名次 · 对数刻度）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-20 10:37（空白新对比是真的空表：不预置假候选）</p>
   <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
@@ -1368,10 +1369,7 @@ function blank(){
   return { caseId:'custom', title:'我的新对比', scene:'', budget:1000, priceWeight:3,
     fields:[{key:'m1',label:'综合评分（1-5）',type:'number',direction:'higher',weight:3}],
     hard:[],
-    items:[
-      {id:'A',name:'候选一',price:199,m1:4},
-      {id:'B',name:'候选二',price:299,m1:5}
-    ]};
+    items:[]};
 }
 
 var state = null, lastResult = null;
@@ -1655,6 +1653,11 @@ function renderHards(){
   }).join('');
 }
 function renderItems(){
+  if(!state.items.length){
+    $('#items').innerHTML = '<div class="tip empty" style="margin:0 0 10px">还没有候选。点下面「+ 添加一个候选」，'+
+      '或者把商品截图粘到这一页，我照图填 &mdash;&mdash; 两件起才比得出胜负。</div>';
+    return;
+  }
   $('#items').innerHTML = state.items.map(function(it,i){
     var fs = state.fields.map(function(f,fi){
       var v = it[f.key];
@@ -2173,6 +2176,11 @@ function decisiveMetrics(r){
 
 function renderReport(res){
   var el = $('#report');
+  if(!state.items.length){
+    el.innerHTML = '<p class="small">左边「4 正在看的几个候选」还空着。加两件要对比的东西，或者把截图粘进来，这里就会出结论。</p>';
+    lastResult = null;
+    return;
+  }
   if(res.errors.length){
     el.innerHTML = '<div class="err">先修好这几处，再生成报告：</div><ul class="plain">'+
       res.errors.map(function(e){return '<li>'+esc(e)+'</li>';}).join('')+'</ul>';
@@ -2508,7 +2516,7 @@ function run(silent){
   renderReport(res);
   var t = toToml();
   $('#tomlNeeds').value = t.needs; $('#tomlItems').value = t.items;
-  if(!silent) toast('报告已生成');
+  if(!silent) toast(state.items.length ? '报告已生成' : '还没有候选：先加两件要对比的东西');
   // 只有用户自己点「生成裁决报告」时才跳过去；后台重算（比如校准权重）不要把人拽走
   if(!silent && window.innerWidth < 920) $('#reportCard').scrollIntoView({behavior:'smooth',block:'start'});
   // 记下这份结论对应的输入；之后任何改动都会让「已过期」提示浮出来
@@ -2534,7 +2542,7 @@ function setCase(id){
   state = normalize(JSON.parse(JSON.stringify(id==='blank' ? blank() : CASES[id].data)));
   state.records = recs;
   $('#caseSel').value = id;
-  $('#caseDesc').textContent = id==='blank' ? '从最简单的两件商品开始，随便改' : CASES[id].desc;
+  $('#caseDesc').textContent = id==='blank' ? '一张空表：先加两件要对比的东西，或者把截图直接粘进来' : CASES[id].desc;
   renderForm(); save(); run(true);
 }
 
@@ -2872,7 +2880,9 @@ function applyVision(payload, opts){
   });
   var msg;
   if(replace){
-    msg = '识别到 ' + state.items.length + ' 件，已经<b>替换掉案例里的示例候选</b>。';
+    msg = (caseBaselineItems() || []).length
+      ? '识别到 ' + state.items.length + ' 件，已经<b>替换掉案例里的示例候选</b>。'
+      : '识别到 <b>' + state.items.length + ' 件</b>，已经填进这个空列表。';
   }else{
     msg = '这张图加入 <b>' + added.length + ' 件</b>，列表现在共 ' + state.items.length + ' 件'
       + (dup ? '（跳过 ' + dup + ' 件重复）' : '')
