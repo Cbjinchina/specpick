@@ -73,6 +73,8 @@ button.del{color:var(--warn);background:transparent;border-color:transparent;pad
 .hero .name{font-size:22px;font-weight:600;line-height:1.35;margin-bottom:8px}
 .hero .nums{display:flex;gap:18px;flex-wrap:wrap;font-size:13px}
 .hero .nums b{font-size:20px;display:block;font-weight:600}
+.reptop{font-size:13px;font-weight:600;color:var(--muted);margin:-2px 0 10px;padding-bottom:8px;
+  border-bottom:1px solid var(--line)}
 .badge{display:inline-block;background:var(--chip);border-radius:20px;padding:2px 10px;font-size:12px;color:var(--muted)}
 .rank{margin-bottom:12px}
 .rank .line{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
@@ -228,7 +230,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件、不用注册、不联网 · 数据只存在这台设备</p>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-20 10:37（空白新对比是真的空表：不预置假候选）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-20 10:52（「你要买什么」真能填买什么，报告顶部显示它）</p>
   <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
@@ -321,7 +323,10 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 
     <div class="card" id="formCard">
       <h2><span class="n">1</span> 你要买什么</h2>
-      <div class="mb"><label class="f" for="fTitle">给这次对比起个名字</label><input id="fTitle"></div>
+      <div class="mb"><label class="f" for="fTitle">买的东西（一句话就行）</label>
+        <input id="fTitle" placeholder="通勤跑步鞋 / 27 寸显示器 / 5000 上下的显卡">
+        <p class="tip" style="margin:6px 0 0">这行同时是报告标题；具体在比哪几件，填到下面 <b style="white-space:nowrap">4 正在看的几个候选</b>。</p>
+      </div>
       <div class="mb"><label class="f" for="fScene">场景说明（可留空）</label><textarea id="fScene"></textarea></div>
       <div class="two">
         <div><label class="f" for="fBudget">预算 ¥</label><input id="fBudget" type="number" inputmode="decimal" min="0"></div>
@@ -1237,7 +1242,7 @@ runNut();
 
 /* ---------- 表单 → 引擎输入 ---------- */
 function buildCase(){
-  var needs = { title:state.title, scene:state.scene, budget:state.budget,
+  var needs = { title:String(state.title||'').trim() || '这次对比', scene:state.scene, budget:state.budget,
                 weights:{}, directions:{}, hard:[] };
   var ranks = {};
   if(state.priceWeight>0){ needs.weights.price = state.priceWeight; needs.directions.price = 'lower'; }
@@ -1398,7 +1403,7 @@ function renderReport(res){
     return;
   }
   var r = res.result;
-  var html = '';
+  var html = '<div class="reptop">'+esc(String(r.title||'').trim() || '这次对比')+'</div>';
   if(!r.accepted.length){
     html += '<div class="hero"><div class="k">裁决</div><div class="name">没有候选通过硬约束</div>'+
       '<div class="small">这不是打分问题，是要求或候选需要放宽。下面逐条写了被淘汰的原因。</div></div>';
