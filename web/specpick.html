@@ -141,7 +141,8 @@ table.score td.na{color:var(--muted)}
 .loginbox .row{display:flex;gap:8px;align-items:stretch}
 .loginbox .row input{margin-bottom:0;min-width:0;flex:1}
 .loginbox .row button{white-space:nowrap;flex:0 0 auto;padding-left:10px;padding-right:10px}
-.loginbox .err{color:var(--warn);font-size:12px;margin:8px 0 0;min-height:16px}
+.loginbox .err{color:var(--warn);background:none;padding:0;font-size:12px;margin:6px 0 0;min-height:0}
+.loginbox .err:empty{display:none}
 /* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
 .pickwrap{position:relative;display:block}
 .pickwrap.inline{display:inline-block;vertical-align:middle}
@@ -253,7 +254,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
     <button class="mini" id="btnLogin">登录（手机号验证码）</button>
     <button class="mini hidden" id="btnLogout">退出登录</button>
   </div>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-24 18:05（AI 识图/解读需先登录：加了手机号验证码登录）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-24 17:57（登录说明：不用 WorkBuddy 账号，手机号就是账号）</p>
   <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
@@ -528,8 +529,8 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 
 <div class="mask hidden" id="loginMask" role="dialog" aria-modal="true" aria-label="登录">
   <div class="loginbox">
-    <h3>登录以使用 AI 功能</h3>
-    <p class="tip">只用手机号 + 验证码，不设密码。登录状态只用来放行模型调用；你的对比数据仍存在本机，不上传。</p>
+    <h3>手机号登录，不用另外注册</h3>
+    <p class="tip">不需要 WorkBuddy 账号，也没注册过？填手机号收个验证码就自动建号，不设密码。这个号只用来放行 AI 调用（识图、让 AI 说说）；你的对比数据仍存在本机、不上传。</p>
     <input id="loginPhone" type="tel" inputmode="numeric" maxlength="11" placeholder="11 位手机号" aria-label="手机号">
     <div class="row">
       <input id="loginCode" type="text" inputmode="numeric" maxlength="6" placeholder="验证码" aria-label="验证码">
