@@ -128,7 +128,9 @@ table.score td.na{color:var(--muted)}
 .nflag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:10px;
   padding:1px 7px;margin-left:6px;color:var(--warn);background:var(--warn-bg)}
 .ncombo{background:var(--code);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;line-height:1.7}
-.hidden{display:none}
+/* 同优先级时，后写的 .mask{display:flex} / .authbar{display:flex} 会盖掉这条，
+   于是「取消」给遮罩加了 hidden、面板却还盖在页面上 —— 必须抬到 !important */
+.hidden{display:none!important}
 .authbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
 .authbar .who{font-size:12px;color:var(--muted)}
 .mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;
@@ -139,10 +141,20 @@ table.score td.na{color:var(--muted)}
 .loginbox .tip{margin:0 0 14px}
 .loginbox input{width:100%;min-height:42px;margin-bottom:8px;font-size:16px;padding:9px 10px}
 .loginbox .row{display:flex;gap:8px;align-items:stretch}
+/* 全局 .row 是「参数行」的样式（带边框和底色），登录框里借用 class 名会被套上，去掉 */
+.loginbox .row{border:0;background:none;padding:0;margin:0}
 .loginbox .row input{margin-bottom:0;min-width:0;flex:1}
 .loginbox .row button{white-space:nowrap;flex:0 0 auto;padding-left:10px;padding-right:10px}
 .loginbox .err{color:var(--warn);background:none;padding:0;font-size:12px;margin:6px 0 0;min-height:0}
 .loginbox .err:empty{display:none}
+/* 登录框：主按钮吃掉剩余宽度，取消固定宽度，别把「取消」挤成竖排两行 */
+.loginbox{border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(8,28,20,.28)}
+.loginbox h3{font-size:18px;margin-bottom:8px}
+.loginbox .tip{margin-bottom:16px}
+.loginbox .toolbar{flex-wrap:nowrap;align-items:stretch;gap:8px;margin-top:12px}
+.loginbox .toolbar .primary{flex:1 1 auto;width:auto;min-height:46px;font-size:15px}
+.loginbox .toolbar .mini{flex:0 0 auto;min-height:46px;padding-left:16px;padding-right:16px}
+.loginbox input:focus{box-shadow:0 0 0 3px var(--accent-bg)}
 /* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
 .pickwrap{position:relative;display:block}
 .pickwrap.inline{display:inline-block;vertical-align:middle}
@@ -243,18 +255,142 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
   .wrap{padding:8px 12px}
   .card{padding:14px}
 }
+
+/* ================= 视觉层（2026-11-24 重做）=================
+   只覆盖外观，不动任何 id / 逻辑；出问题整段删掉即可回到旧样式 */
+:root{
+  --brand-1:#0c3327; --brand-2:#17624a; --brand-3:#2a8f6b;
+  --shadow-s:0 1px 2px rgba(13,31,25,.05), 0 2px 6px rgba(13,31,25,.04);
+  --shadow-m:0 2px 4px rgba(13,31,25,.05), 0 14px 34px rgba(13,31,25,.07);
+}
+@media (prefers-color-scheme:dark){
+  :root{ --brand-1:#081f18; --brand-2:#12432f; --brand-3:#1f6b4d;
+    --shadow-s:0 1px 2px rgba(0,0,0,.5); --shadow-m:0 12px 30px rgba(0,0,0,.5); }
+}
+body{
+  background:
+    radial-gradient(900px 420px at 6% -180px, var(--accent-bg), transparent 68%),
+    radial-gradient(720px 360px at 100% -60px, var(--accent-bg), transparent 62%),
+    var(--bg);
+  background-attachment:fixed;
+}
+
+/* 头部：深绿品牌区 */
+header{
+  max-width:1080px; margin:16px auto 0; padding:26px 24px 22px;
+  border-radius:22px; color:#f1f7f3; position:relative; overflow:hidden;
+  background:linear-gradient(135deg,var(--brand-1) 0%,var(--brand-2) 58%,var(--brand-3) 100%);
+  box-shadow:var(--shadow-m);
+}
+header::after{
+  content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.2), transparent 66%); pointer-events:none;
+}
+header h1{font-size:26px; font-weight:700; letter-spacing:.4px; margin:0 0 8px; position:relative}
+header .sub{color:rgba(240,248,243,.76); font-size:13px; max-width:46em; position:relative}
+header .authbar{margin-top:12px; gap:8px; position:relative}
+header .authbar .who{color:rgba(240,248,243,.74)}
+header button{border-color:rgba(255,255,255,.3); background:rgba(255,255,255,.13); color:#fff}
+header button:hover{background:rgba(255,255,255,.22)}
+header #buildTag{opacity:.5!important; font-size:11px!important; margin-top:12px!important}
+header #saveState{opacity:.62; margin-top:6px!important}
+.hdr-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;position:relative}
+.hdr-tags span{font-size:11.5px;line-height:1.2;padding:5px 10px;border-radius:20px;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.9);
+  white-space:nowrap}
+.guide-head .mini{white-space:nowrap;flex:0 0 auto}
+
+/* 卡片：更明确的层次 */
+.card{border-radius:18px; padding:18px; box-shadow:var(--shadow-s)}
+@media(min-width:920px){
+  .card{transition:box-shadow .18s ease, transform .18s ease}
+  .card:hover{box-shadow:var(--shadow-m); transform:translateY(-1px)}
+}
+.card h2{font-size:15.5px; letter-spacing:.2px; gap:9px}
+.card h2 .n{width:25px; height:25px; border-radius:9px; font-size:12px; font-weight:700;
+  background:linear-gradient(135deg,var(--brand-2),var(--brand-3)); color:#fff;
+  box-shadow:0 2px 7px rgba(23,107,77,.26)}
+@media (prefers-color-scheme:dark){
+  .card h2 .n{background:var(--accent); color:#08211a; box-shadow:none}
+}
+
+/* 控件 */
+input,select,textarea{border-radius:10px}
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--accent-bg)}
+button{border-radius:10px; transition:background .15s ease, border-color .15s ease, filter .15s ease}
+button:hover{filter:brightness(.98)}
+button.primary{
+  background:linear-gradient(135deg,var(--brand-2) 0%,var(--brand-3) 100%);
+  border-color:transparent; letter-spacing:.6px; border-radius:12px; min-height:52px;
+  box-shadow:0 8px 20px rgba(23,107,77,.26)}
+button.primary:hover{filter:brightness(1.07)}
+@media (prefers-color-scheme:dark){
+  button.primary{background:linear-gradient(135deg,#1c6b4e,#2a8f6b); color:#f2fff8}
+}
+.chip.on{background:linear-gradient(135deg,var(--brand-2),var(--brand-3)); border-color:transparent;
+  box-shadow:0 3px 10px rgba(23,107,77,.22)}
+
+/* 指引卡：浅色描边 + 左侧序号胶囊 */
+.guide{border-radius:18px; border-style:dashed; box-shadow:var(--shadow-s)}
+.guide .step{border-radius:12px; background:var(--card)}
+
+/* 报告：冠军卡 */
+.hero{position:relative; overflow:hidden; padding:20px 20px 18px; border-radius:16px;
+  background:linear-gradient(160deg,var(--accent-bg) 0%,var(--card) 76%);
+  box-shadow:0 10px 26px rgba(23,107,77,.10)}
+.hero::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
+  background:linear-gradient(180deg,var(--accent),var(--brand-3))}
+.hero .k{font-size:11px; letter-spacing:2px; font-weight:700; color:var(--accent); text-transform:uppercase}
+.hero .name{font-size:25px; line-height:1.3; font-weight:700; letter-spacing:.2px; margin:6px 0 0}
+.hero .nums{display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:8px; margin-top:14px}
+.hero .nums>div{background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:10px 12px; font-size:11px; color:var(--muted); line-height:1.45}
+.hero .nums b{display:block; font-size:19px; font-weight:700; color:var(--text); margin-bottom:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.reptop{display:inline-block; font-size:12px; font-weight:600; color:var(--accent);
+  background:var(--accent-bg); border-radius:20px; padding:4px 12px; margin:0 0 12px; border:0}
+
+/* 排名条 */
+.rank{padding:9px 11px; border-radius:12px; margin-bottom:7px; border:1px solid transparent}
+.rank.top{background:linear-gradient(135deg,var(--accent-bg),var(--card) 80%);
+  border-color:var(--accent)}
+.rank.top .line b{color:var(--accent); font-size:15px}
+.bar{height:8px}
+.bar i{background:linear-gradient(90deg,var(--brand-3),var(--accent))}
+.rank.top .bar i{background:linear-gradient(90deg,var(--accent),var(--brand-3))}
+
+/* 空态 */
+.tip.empty{background:var(--bg); border-radius:12px; padding:18px 14px; color:var(--muted)}
+.empty-state{text-align:center; padding:28px 18px 24px; color:var(--muted)}
+.empty-state svg{color:var(--accent); opacity:.65; margin-bottom:12px; display:inline-block}
+.es-title{font-size:15.5px; font-weight:700; color:var(--text); margin-bottom:7px; letter-spacing:.2px}
+.es-text{font-size:12.5px; line-height:1.7; margin:0 auto 16px; max-width:31em}
+.es-acts{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+
+@media(max-width:600px){
+  header{margin:10px 12px 0; padding:20px 18px 18px; border-radius:18px}
+  header h1{font-size:21px}
+  .hdr-tags{margin-top:12px}
+  .hdr-tags span:nth-child(4){display:none}
+  .wrap{padding:8px 12px}
+  .card{padding:15px; border-radius:16px}
+  .hero .name{font-size:21px}
+}
 </style>
 </head>
 <body>
 <header>
   <h1>按我的需求挑东西</h1>
   <p class="sub">手机、电脑都能用 · 不用装软件 · 数据只存在这台设备；AI 识图和解读需登录并联网</p>
+  <div class="hdr-tags">
+    <span>截图自动填表</span><span>规则算分不猜</span><span>说清为什么输</span><span>买完能复盘</span>
+  </div>
   <div class="authbar hidden" id="authBar">
     <span class="who" id="authWho">未登录：AI 识图 / 解读要先登录</span>
     <button class="mini" id="btnLogin">登录（手机号验证码）</button>
     <button class="mini hidden" id="btnLogout">退出登录</button>
   </div>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">版本 2026-11-24 18:23（修登录态解析：验证码通过后顶部能正确变已登录）</p>
+  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">v2026.11.24 18:56 · 新界面，登录框能关掉了</p>
   <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
@@ -404,7 +540,20 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
         <span class="st-txt">表单改过了，下面还是上一次的结论</span>
         <button class="mini" id="btnRestale">按新数据重算</button>
       </div>
-      <div id="report"><p class="small">填好左边，点「生成裁决报告」就能看到：谁该赢、为什么另一个输了、要改哪个条件才会翻盘。</p></div>
+      <div id="report">
+        <div class="empty-state">
+          <svg viewBox="0 0 120 72" width="112" height="68" aria-hidden="true">
+            <rect x="8" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>
+            <rect x="74" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>
+            <path d="M53 24h14M53 36h14M53 48h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".35"/>
+            <circle cx="27" cy="28" r="4.2" fill="currentColor" opacity=".55"/>
+            <circle cx="93" cy="44" r="4.2" fill="currentColor" opacity=".55"/>
+          </svg>
+          <div class="es-title">这一栏现在还是空的</div>
+          <p class="es-text">填好左边，点「生成裁决报告」，这里会告诉你：谁该赢、另一个输在哪、要让第二名翻盘得改哪个条件。</p>
+          <div class="es-acts"><button class="mini" id="btnEmptyGo">去填第一个候选</button></div>
+        </div>
+      </div>
       <div id="aiWhyCard" class="aiwhy hidden">
         <div class="aw-h">说人话 · AI 解读这份裁决</div>
         <div class="aw-txt" id="aiWhyText"></div>
@@ -416,7 +565,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
           <button class="mini" id="btnAiWhyClear" style="display:none">收起</button>
         </div>
       </div>
-      <div class="toolbar" id="reportBar">
+      <div class="toolbar hidden" id="reportBar">
         <button class="mini" id="btnAiWhy">让 AI 说说</button>
         <button class="mini" id="btnPrint">打印 / 存成 PDF</button>
         <span class="small" style="align-self:center">只打报告这一块，表单和按钮不会印出来</span>
@@ -530,7 +679,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
 <div class="mask hidden" id="loginMask" role="dialog" aria-modal="true" aria-label="登录">
   <div class="loginbox">
     <h3>手机号登录，不用另外注册</h3>
-    <p class="tip">不需要 WorkBuddy 账号，也没注册过？填手机号收个验证码就自动建号，不设密码。这个号只用来放行 AI 调用（识图、让 AI 说说）；你的对比数据仍存在本机、不上传。</p>
+    <p class="tip">手机号就是账号，不设密码、也不用 WorkBuddy 账号。收个验证码就自动建号，只用来放行 AI 调用；你的对比数据仍然只存在这台设备。</p>
     <input id="loginPhone" type="tel" inputmode="numeric" autocomplete="tel" maxlength="11" placeholder="11 位手机号" aria-label="手机号">
     <div class="row">
       <input id="loginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="验证码" aria-label="验证码">
@@ -1447,8 +1596,19 @@ function decisiveMetrics(r){
 function renderReport(res){
   var el = $('#report');
   var aiCard = $('#aiWhyCard'); if(aiCard) aiCard.classList.add('hidden');
+  // 没结果时「让 AI 说说 / 打印」没有意义，先收起来，出结论再放出来
+  var rbar = $('#reportBar'); if(rbar) rbar.classList.add('hidden');
   if(!state.items.length){
-    el.innerHTML = '<p class="small">左边「4 正在看的几个候选」还空着。加两件要对比的东西，或者把截图粘进来，这里就会出结论。</p>';
+    el.innerHTML = '<div class="empty-state">'+
+      '<svg viewBox="0 0 120 72" width="104" height="63" aria-hidden="true">'+
+      '<rect x="8" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>'+
+      '<rect x="74" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>'+
+      '<path d="M53 24h14M53 36h14M53 48h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".35"/>'+
+      '<circle cx="27" cy="28" r="4.2" fill="currentColor" opacity=".55"/>'+
+      '<circle cx="93" cy="44" r="4.2" fill="currentColor" opacity=".55"/></svg>'+
+      '<div class="es-title">还没有可比的东西</div>'+
+      '<p class="es-text">左边「4 正在看的几个候选」还空着。至少加两件要对比的东西 &mdash;&mdash; 手填，或者把截图粘进来，这里就会出结论。</p>'+
+      '<div class="es-acts"><button class="mini" id="btnEmptyGo">＋ 加第一个候选</button></div></div>';
     lastResult = null;
     return;
   }
@@ -1471,7 +1631,7 @@ function renderReport(res){
     var max = Math.max.apply(null, r.accepted.map(function(x){return x.total;})) || 1;
     html += '<div class="sec">排名与得分</div>';
     r.accepted.forEach(function(s,i){
-      html += '<div class="rank"><div class="line"><span>'+(i+1)+'. '+esc(s.name)+
+      html += '<div class="rank'+(i===0?' top':'')+'"><div class="line"><span>'+(i+1)+'. '+esc(s.name)+
         ' <span class="badge">¥'+esc(s.price)+'</span></span><b>'+fmt(s.total)+'</b></div>'+
         '<div class="bar"><i style="width:'+Math.max(2,Math.round(s.total/max*100))+'%"></i></div></div>';
     });
@@ -1515,7 +1675,7 @@ function renderReport(res){
       html += '<li><b>'+esc(lab(m.metric))+'</b> 从 '+esc(m.current)+' '+dir+' '+esc(m.target)+
         '（跨越该指标范围的 '+Math.round(m.relative*100)+'%）</li>';
     });
-    html += '</ul><div class="small">按你选的比法直接解出来的，不是猜测。对 8G/16G 这类离散规格，中间值现实中可能并不存在。</div>';
+    html += '</ul><div class="small">按你选的比法直接解出来的，不是猜测。如果某一项是档位或固定规格（比如内存只有 8G / 16G 两挡），算出来的中间值现实中可能买不到。</div>';
   }else if(r.accepted.length>=2){
     html += '<div class="sec">第二名要怎样才会赢</div><div class="small">单改任一条件都追不上，需要同时调整多个条件。</div>';
   }
@@ -1545,7 +1705,7 @@ function renderReport(res){
   html += '<details><summary>看这份报告的文字版（可复制进笔记或 git）</summary><pre id="mdBox"></pre>'+
     '<button class="mini" id="btnCopyMd2" style="margin-top:8px">复制文字版</button></details>';
   el.innerHTML = html;
-  $('#mdBox').textContent = markdown(r);
+  if(rbar && r.accepted.length) rbar.classList.remove('hidden');  $('#mdBox').textContent = markdown(r);
   var b = $('#btnCopyMd2'); if(b) b.onclick = function(){ copy(markdown(r)); };
   lastResult = r;
 }
@@ -1819,6 +1979,12 @@ function setCase(id){
 
 $('#caseSel').addEventListener('change', function(){ setCase(this.value); });
 $('#btnBlank').onclick = function(){ setCase('blank'); };
+// 报告空态里的「加第一个候选」：用事件委托，因为这块 HTML 每次重算都会重建
+document.addEventListener('click', function(e){
+  if(!e.target || e.target.id !== 'btnEmptyGo') return;
+  var b = $('#btnAddItem'); if(b) b.click();
+  var ic = $('#items'); if(ic && ic.scrollIntoView) ic.scrollIntoView({behavior:'smooth', block:'center'});
+});
 $('#btnExport').onclick = function(){
   sync();
   var blob = new Blob([JSON.stringify({version:1,data:state},null,2)],{type:'application/json'});
