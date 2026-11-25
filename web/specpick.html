@@ -94,7 +94,8 @@ pre{background:var(--code);border-radius:9px;padding:10px;overflow:auto;font-siz
   white-space:pre-wrap;word-break:break-all;max-height:280px}
 footer{max-width:1080px;margin:0 auto;padding:0 16px 20px;font-size:12px;color:var(--muted);line-height:1.7}
 select.pick{max-width:100%;font-size:15px}
-.hrow{display:grid;grid-template-columns:minmax(0,1fr) 74px minmax(0,1fr);gap:8px}
+.hrow{display:grid;grid-template-columns:minmax(0,1fr) 98px minmax(0,1fr);gap:8px}
+.hrow .h-op{padding-left:8px;padding-right:18px;font-size:13.5px}
 .hrow .full{grid-column:1 / -1}
 .row .rline{margin-top:8px}
 .row .tline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:8px}
@@ -128,7 +129,7 @@ table.score td.na{color:var(--muted)}
 .nflag{display:inline-block;font-size:11px;border:1px solid var(--line);border-radius:10px;
   padding:1px 7px;margin-left:6px;color:var(--warn);background:var(--warn-bg)}
 .ncombo{background:var(--code);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px;line-height:1.7}
-/* 同优先级时，后写的 .mask{display:flex} / .authbar{display:flex} 会盖掉这条，
+/* 同优先级下，后写的 .mask{display:flex} / .authbar{display:flex} 会盖掉这条，
    于是「取消」给遮罩加了 hidden、面板却还盖在页面上 —— 必须抬到 !important */
 .hidden{display:none!important}
 .authbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
@@ -141,20 +142,16 @@ table.score td.na{color:var(--muted)}
 .loginbox .tip{margin:0 0 14px}
 .loginbox input{width:100%;min-height:42px;margin-bottom:8px;font-size:16px;padding:9px 10px}
 .loginbox .row{display:flex;gap:8px;align-items:stretch}
-/* 全局 .row 是「参数行」的样式（带边框和底色），登录框里借用 class 名会被套上，去掉 */
-.loginbox .row{border:0;background:none;padding:0;margin:0}
 .loginbox .row input{margin-bottom:0;min-width:0;flex:1}
 .loginbox .row button{white-space:nowrap;flex:0 0 auto;padding-left:10px;padding-right:10px}
-.loginbox .err{color:var(--warn);background:none;padding:0;font-size:12px;margin:6px 0 0;min-height:0}
-.loginbox .err:empty{display:none}
-/* 登录框：主按钮吃掉剩余宽度，取消固定宽度，别把「取消」挤成竖排两行 */
-.loginbox{border-radius:18px;padding:22px;box-shadow:0 18px 50px rgba(8,28,20,.28)}
-.loginbox h3{font-size:18px;margin-bottom:8px}
-.loginbox .tip{margin-bottom:16px}
+/* 全局 .row 是「参数行」样式（带边框底色），登录框借用同名 class 会被套上一层灰框 */
+.loginbox .row{border:0;background:none;padding:0;margin:0}
+/* 主按钮吃掉剩余宽度，取消固定宽度，别把「取消」挤成竖排两行 */
 .loginbox .toolbar{flex-wrap:nowrap;align-items:stretch;gap:8px;margin-top:12px}
 .loginbox .toolbar .primary{flex:1 1 auto;width:auto;min-height:46px;font-size:15px}
 .loginbox .toolbar .mini{flex:0 0 auto;min-height:46px;padding-left:16px;padding-right:16px}
-.loginbox input:focus{box-shadow:0 0 0 3px var(--accent-bg)}
+.loginbox .err{color:var(--warn);background:none;padding:0;font-size:12px;margin:6px 0 0;min-height:0}
+.loginbox .err:empty{display:none}
 /* 文件选择：透明 input 铺满按钮，点击走浏览器原生行为（手机上比 JS click 稳得多） */
 .pickwrap{position:relative;display:block}
 .pickwrap.inline{display:inline-block;vertical-align:middle}
@@ -248,7 +245,7 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
   .guide{padding:14px}
   .steps{grid-template-columns:1fr}
   .two{grid-template-columns:1fr}
-  .hrow{grid-template-columns:minmax(0,1fr) 84px}
+  .hrow{grid-template-columns:minmax(0,1fr) 96px}
   .hrow .h-value,.hrow .full{grid-column:1 / -1}
   .item .top{grid-template-columns:minmax(0,1fr) 96px}
   header{padding:16px 12px 6px}
@@ -256,142 +253,472 @@ input.filegrab{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;z
   .card{padding:14px}
 }
 
-/* ================= 视觉层（2026-11-24 重做）=================
-   只覆盖外观，不动任何 id / 逻辑；出问题整段删掉即可回到旧样式 */
+/* ==========================================================================
+   商城版界面层（纯视觉 + 布局重排；不改任何 id、不碰任何 JS 逻辑）
+   ========================================================================== */
 :root{
-  --brand-1:#0c3327; --brand-2:#17624a; --brand-3:#2a8f6b;
-  --shadow-s:0 1px 2px rgba(13,31,25,.05), 0 2px 6px rgba(13,31,25,.04);
-  --shadow-m:0 2px 4px rgba(13,31,25,.05), 0 14px 34px rgba(13,31,25,.07);
+  --price:#d4422b; --price-bg:#fdf0ec;
+  --shadow:0 1px 2px rgba(20,40,30,.05),0 10px 28px -20px rgba(20,40,30,.28);
+  --shadow-lg:0 18px 50px -28px rgba(16,48,35,.45);
+  --radius:16px;
+  --brand-2:#1b7a58;
 }
-@media (prefers-color-scheme:dark){
-  :root{ --brand-1:#081f18; --brand-2:#12432f; --brand-3:#1f6b4d;
-    --shadow-s:0 1px 2px rgba(0,0,0,.5); --shadow-m:0 12px 30px rgba(0,0,0,.5); }
-}
-body{
-  background:
-    radial-gradient(900px 420px at 6% -180px, var(--accent-bg), transparent 68%),
-    radial-gradient(720px 360px at 100% -60px, var(--accent-bg), transparent 62%),
-    var(--bg);
-  background-attachment:fixed;
+@media(prefers-color-scheme:dark){
+  :root{ --price:#f0855f; --price-bg:#3a231b; }
 }
 
-/* 头部：深绿品牌区 */
+html{scroll-behavior:smooth}
+body{background:#f7f8f5;padding-bottom:48px}
+@media(prefers-color-scheme:dark){ body{background:#111410} }
+
+/* ---------- 顶栏 ---------- */
 header{
-  max-width:1080px; margin:16px auto 0; padding:26px 24px 22px;
-  border-radius:22px; color:#f1f7f3; position:relative; overflow:hidden;
-  background:linear-gradient(135deg,var(--brand-1) 0%,var(--brand-2) 58%,var(--brand-3) 100%);
-  box-shadow:var(--shadow-m);
+  max-width:none;margin:0;padding:0;position:sticky;top:0;z-index:80;
+  background:color-mix(in srgb,var(--card) 90%,transparent);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);
+  backdrop-filter:saturate(180%) blur(16px);
+  border-bottom:1px solid var(--line);
 }
-header::after{
-  content:""; position:absolute; right:-70px; top:-90px; width:280px; height:280px; border-radius:50%;
-  background:radial-gradient(circle, rgba(255,255,255,.2), transparent 66%); pointer-events:none;
-}
-header h1{font-size:26px; font-weight:700; letter-spacing:.4px; margin:0 0 8px; position:relative}
-header .sub{color:rgba(240,248,243,.76); font-size:13px; max-width:46em; position:relative}
-header .authbar{margin-top:12px; gap:8px; position:relative}
-header .authbar .who{color:rgba(240,248,243,.74)}
-header button{border-color:rgba(255,255,255,.3); background:rgba(255,255,255,.13); color:#fff}
-header button:hover{background:rgba(255,255,255,.22)}
-header #buildTag{opacity:.5!important; font-size:11px!important; margin-top:12px!important}
-header #saveState{opacity:.62; margin-top:6px!important}
-.hdr-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px;position:relative}
-.hdr-tags span{font-size:11.5px;line-height:1.2;padding:5px 10px;border-radius:20px;
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.9);
-  white-space:nowrap}
-.guide-head .mini{white-space:nowrap;flex:0 0 auto}
+.tn-inner{max-width:1280px;margin:0 auto;padding:0 20px;height:64px;
+  display:flex;align-items:center;gap:18px}
+.logo{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--text);flex:0 0 auto}
+.logo-mark{width:34px;height:34px;border-radius:11px;color:#fff;flex:0 0 auto;
+  background:linear-gradient(150deg,#1f8059,#0f5138);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 12px -2px rgba(23,107,77,.42)}
+.logo-mark svg{width:18px;height:18px}
+.logo-txt{display:flex;flex-direction:column;line-height:1.1}
+.logo-txt b{font-size:16px;font-weight:700;letter-spacing:.02em}
+.logo-txt i{font-style:normal;font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
 
-/* 卡片：更明确的层次 */
-.card{border-radius:18px; padding:18px; box-shadow:var(--shadow-s)}
-@media(min-width:920px){
-  .card{transition:box-shadow .18s ease, transform .18s ease}
-  .card:hover{box-shadow:var(--shadow-m); transform:translateY(-1px)}
+.tn-tabs{display:flex;align-items:center;gap:2px;flex:1 1 auto;justify-content:center;
+  overflow-x:auto;scrollbar-width:none}
+.tn-tabs::-webkit-scrollbar{display:none}
+.tn-tabs a{flex:0 0 auto;font-size:13.5px;color:var(--muted);text-decoration:none;
+  padding:7px 13px;border-radius:9px;white-space:nowrap;
+  transition:background .15s,color .15s}
+.tn-tabs a:hover{background:var(--chip);color:var(--text)}
+
+.tn-acct{display:flex;align-items:center;gap:10px;margin-left:auto;flex:0 0 auto;max-width:52%}
+header .authbar{margin:0;display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
+header .authbar .who{font-size:12px;color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:230px}
+.savebar{margin:0!important;font-size:11.5px;color:var(--muted);white-space:nowrap}
+.savebar b{font-weight:600}
+
+/* ---------- 主视觉 banner ---------- */
+.hero-sec{max-width:1280px;margin:20px auto 0;padding:0 20px}
+.hero-inner{position:relative;overflow:hidden;border-radius:22px;padding:34px 36px;
+  display:grid;grid-template-columns:minmax(0,1.28fr) minmax(0,1fr);gap:36px;align-items:center;
+  background:linear-gradient(135deg,#14664c 0%,#0c4a34 52%,#0a3d2c 100%);
+  box-shadow:var(--shadow-lg)}
+.hero-inner::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(620px 300px at 88% -10%,rgba(120,220,175,.28),transparent 68%),
+    radial-gradient(420px 260px at 4% 108%,rgba(255,255,255,.10),transparent 70%)}
+.hero-inner::after{content:"";position:absolute;right:-70px;top:-70px;width:300px;height:300px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.11);pointer-events:none;
+  box-shadow:0 0 0 60px rgba(255,255,255,.035),0 0 0 120px rgba(255,255,255,.02)}
+.hero-copy{position:relative;z-index:1;min-width:0}
+.hero-kicker{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;
+  letter-spacing:.06em;color:#a9e2c4;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:5px 12px;margin-bottom:16px}
+.hero-copy h1{font-size:33px;line-height:1.28;font-weight:700;letter-spacing:-.6px;
+  color:#fff;margin:0 0 14px}
+.hero-copy h1 em{font-style:normal;color:#8fe6b8;position:relative;white-space:nowrap}
+.hero-copy h1 em::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:8px;
+  background:rgba(143,230,184,.22);border-radius:4px;z-index:-1}
+.hero-sub{font-size:14px;line-height:1.72;color:rgba(255,255,255,.78);
+  margin:0 0 22px;max-width:52ch}
+.hero-acts{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.hero-acts .primary{width:auto;min-height:46px;padding:0 24px;font-size:14.5px;font-weight:700;
+  background:#fff;color:#0d4b35;border:1px solid #fff;border-radius:11px;
+  box-shadow:0 8px 22px -10px rgba(0,0,0,.5)}
+.hero-acts .primary:hover{filter:brightness(.97)}
+.hero-acts .jump.ghost{background:rgba(255,255,255,.08);color:#fff;
+  border:1px solid rgba(255,255,255,.28);font-weight:600;font-size:13.5px;
+  padding:0 18px;min-height:46px;border-radius:11px}
+.hero-acts .jump.ghost:hover{background:rgba(255,255,255,.15)}
+.hero-meta{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-top:20px;
+  font-size:12px;color:rgba(255,255,255,.68)}
+.hero-meta i{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.6}
+
+/* banner 右侧：四格说明 */
+.hero-side{position:relative;z-index:1;background:rgba(255,255,255,.075);
+  border:1px solid rgba(255,255,255,.14);border-radius:16px;padding:18px 18px 8px;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.hs-h{font-size:11.5px;font-weight:700;letter-spacing:.1em;color:#8fe6b8;
+  text-transform:uppercase;margin-bottom:12px}
+.hero-side ul{list-style:none;margin:0;padding:0}
+.hero-side li{display:flex;gap:11px;padding:9px 0;border-top:1px solid rgba(255,255,255,.09)}
+.hero-side li:first-child{border-top:0;padding-top:0}
+.hero-side li::before{content:"";flex:0 0 6px;width:6px;height:6px;border-radius:50%;
+  background:#8fe6b8;margin-top:8px}
+.hero-side li b{display:block;font-size:13.5px;color:#fff;font-weight:600;line-height:1.4}
+.hero-side li span{display:block;font-size:12px;color:rgba(255,255,255,.6);line-height:1.55;margin-top:2px}
+
+/* ---------- 新手引导条（降权） ---------- */
+.guide{max-width:1280px;margin:16px auto 0;padding:16px 20px;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.guide-head{align-items:flex-start;gap:12px}
+.guide-kicker{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  color:var(--accent);background:var(--accent-bg);border-radius:20px;padding:2px 9px;margin-bottom:7px}
+.guide-title{font-size:15px;font-weight:650;line-height:1.4}
+.guide-sub{font-size:12.5px;margin-top:4px;line-height:1.62}
+.guide .steps{margin:13px 0 4px}
+.guide .step{background:var(--bg);border-color:var(--line)}
+.guide details{border-top:1px solid var(--line);margin-top:12px;padding-top:2px}
+#btnGuideHide{white-space:nowrap;flex:0 0 auto}
+
+/* ---------- 主体两栏 ---------- */
+.wrap{max-width:1280px;padding:20px 20px 0;gap:20px}
+@media(min-width:1000px){
+  .wrap{grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);align-items:start}
 }
-.card h2{font-size:15.5px; letter-spacing:.2px; gap:9px}
-.card h2 .n{width:25px; height:25px; border-radius:9px; font-size:12px; font-weight:700;
-  background:linear-gradient(135deg,var(--brand-2),var(--brand-3)); color:#fff;
-  box-shadow:0 2px 7px rgba(23,107,77,.26)}
-@media (prefers-color-scheme:dark){
-  .card h2 .n{background:var(--accent); color:#08211a; box-shadow:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card h2{font-size:15.5px;font-weight:650;letter-spacing:-.1px;margin-bottom:14px;gap:9px}
+.n{width:25px;height:25px;border-radius:8px;font-size:12px;font-weight:700;
+  background:linear-gradient(150deg,#1d7c5a,#12563d);color:#fff;
+  box-shadow:0 3px 8px -3px rgba(23,107,77,.5)}
+@media(prefers-color-scheme:dark){
+  .n{background:linear-gradient(150deg,#2f9a72,#1d6b4c);color:#04120b}
 }
+
+/* 表单 4 步：拆成独立卡 */
+.form-stack{display:flex;flex-direction:column;gap:14px}
+.form-stack .card{margin-bottom:0}
+#formCard .card h2{margin-bottom:13px}
+
+/* 说明文字 */
+.tip{font-size:12.5px;line-height:1.68}
+.tip b,.tip strong{color:var(--text);opacity:.9}
+.small{line-height:1.68}
+label.f{font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px}
 
 /* 控件 */
-input,select,textarea{border-radius:10px}
-input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px var(--accent-bg)}
-button{border-radius:10px; transition:background .15s ease, border-color .15s ease, filter .15s ease}
-button:hover{filter:brightness(.98)}
-button.primary{
-  background:linear-gradient(135deg,var(--brand-2) 0%,var(--brand-3) 100%);
-  border-color:transparent; letter-spacing:.6px; border-radius:12px; min-height:52px;
-  box-shadow:0 8px 20px rgba(23,107,77,.26)}
-button.primary:hover{filter:brightness(1.07)}
-@media (prefers-color-scheme:dark){
-  button.primary{background:linear-gradient(135deg,#1c6b4e,#2a8f6b); color:#f2fff8}
+input,select,textarea{border-radius:10px;font-size:15px;
+  box-shadow:0 1px 1px rgba(20,40,30,.025);
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+input:hover,select:hover,textarea:hover{border-color:var(--muted)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 14%,transparent)}
+
+/* 按钮 */
+button{border-radius:10px;transition:background .15s,border-color .15s,transform .06s,filter .15s}
+button:active{transform:translateY(1px)}
+button.mini{background:var(--card);border-color:var(--line);color:var(--text);font-weight:500}
+button.mini:hover{border-color:var(--muted);background:var(--chip)}
+button.primary{background:linear-gradient(180deg,#1c7d5a,#125a41);border-color:#125a41;
+  box-shadow:0 8px 20px -12px rgba(18,90,65,.85)}
+button.primary:hover{filter:brightness(1.06)}
+button.del{color:var(--warn)}
+
+/* 比较项 / 硬要求 小卡 */
+.row{border-radius:12px;background:var(--bg);border-color:var(--line)}
+.row .hd span{font-weight:500}
+.row .wv{font-weight:700}
+
+/* ---------- 候选 = 商品卡 ---------- */
+#items{display:grid;gap:13px;margin-bottom:12px}
+@media(min-width:780px){ #items{grid-template-columns:repeat(2,minmax(0,1fr))} }
+.item{display:flex;flex-direction:column;padding:0;overflow:hidden;border-radius:15px;
+  background:var(--card);border:1px solid var(--line);margin-bottom:0;
+  box-shadow:0 1px 2px rgba(20,40,30,.04);
+  transition:box-shadow .18s ease,border-color .18s ease,transform .18s ease}
+.item:hover{box-shadow:0 10px 26px -18px rgba(20,40,30,.4);border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
+.item .hd{padding:11px 13px 0;margin:0;justify-content:space-between}
+.item .hd span{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);
+  text-transform:uppercase}
+.item .hd .del{min-height:26px;font-size:11.5px;padding:2px 7px;opacity:.75}
+.item .hd .del:hover{opacity:1;background:var(--price-bg)}
+
+/* 图区（CSS 生成，不冒充具体商品） */
+.item .top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;
+  padding:8px 13px 0;align-items:center}
+.item .top::before{content:"";grid-column:1 / -1;height:104px;margin:0 -13px 4px;
+  border-radius:0;border-top:1px solid transparent;
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-position:center 46%,center,center;
+  background-size:46px 46px,auto,auto;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a6b4e' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+    radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.9),rgba(255,255,255,0) 62%),
+    linear-gradient(155deg,#eaf4ee,#dcebe2);
+  opacity:.95}
+/* 不同候选换底，避免一片同色 */
+#items .item:nth-child(4n+2) .top::before{
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a6b4e' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+    radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.9),rgba(255,255,255,0) 62%),
+    linear-gradient(155deg,#eef1f7,#dfe6f1)}
+#items .item:nth-child(4n+3) .top::before{
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a6b4e' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+    radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.9),rgba(255,255,255,0) 62%),
+    linear-gradient(155deg,#f6efe7,#eee2d3)}
+#items .item:nth-child(4n+4) .top::before{
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a6b4e' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+    radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.9),rgba(255,255,255,0) 62%),
+    linear-gradient(155deg,#eef0f4,#e2e6ec)}
+@media(prefers-color-scheme:dark){
+  #items .item .top::before{opacity:.9;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386d3ac' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+      radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.06),rgba(255,255,255,0) 62%),
+      linear-gradient(155deg,#22302a,#1a2620)}
+  #items .item:nth-child(2n) .top::before{
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386d3ac' stroke-width='1.35' stroke-linecap='round' stroke-linejoin='round'><path d='M5.4 8.2h13.2l1.1 11.1a1.9 1.9 0 0 1-1.9 2.1H6.2a1.9 1.9 0 0 1-1.9-2.1z'/><path d='M8.9 8.2V6.4a3.1 3.1 0 0 1 6.2 0v1.8'/></svg>"),
+      radial-gradient(120% 90% at 50% 0%,rgba(255,255,255,.06),rgba(255,255,255,0) 62%),
+      linear-gradient(155deg,#232b36,#1a2029)}
 }
-.chip.on{background:linear-gradient(135deg,var(--brand-2),var(--brand-3)); border-color:transparent;
-  box-shadow:0 3px 10px rgba(23,107,77,.22)}
 
-/* 指引卡：浅色描边 + 左侧序号胶囊 */
-.guide{border-radius:18px; border-style:dashed; box-shadow:var(--shadow-s)}
-.guide .step{border-radius:12px; background:var(--card)}
+/* 名称 / 价格 */
+.item .i-name{border-color:transparent;background:transparent;padding:3px 0;
+  font-size:15px;font-weight:650;letter-spacing:-.1px;min-height:32px}
+.item .i-name:hover{border-color:var(--line);background:var(--bg);padding-left:7px}
+.item .i-name:focus{background:var(--card);padding-left:7px}
+.item .i-price{border-color:transparent;background:transparent;padding:2px 4px;
+  font-size:20px;font-weight:750;color:var(--price);text-align:right;
+  min-height:34px;width:auto;min-width:82px;max-width:118px;
+  font-variant-numeric:tabular-nums}
+.item .i-price:hover{border-color:var(--line);background:var(--price-bg)}
+.item .i-price:focus{background:var(--card);color:var(--price)}
+.item .i-price::placeholder{color:var(--muted);font-weight:500;font-size:13px}
 
-/* 报告：冠军卡 */
-.hero{position:relative; overflow:hidden; padding:20px 20px 18px; border-radius:16px;
-  background:linear-gradient(160deg,var(--accent-bg) 0%,var(--card) 76%);
-  box-shadow:0 10px 26px rgba(23,107,77,.10)}
-.hero::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px;
-  background:linear-gradient(180deg,var(--accent),var(--brand-3))}
-.hero .k{font-size:11px; letter-spacing:2px; font-weight:700; color:var(--accent); text-transform:uppercase}
-.hero .name{font-size:25px; line-height:1.3; font-weight:700; letter-spacing:.2px; margin:6px 0 0}
-.hero .nums{display:grid; grid-template-columns:repeat(auto-fit,minmax(92px,1fr)); gap:8px; margin-top:14px}
-.hero .nums>div{background:var(--card); border:1px solid var(--line); border-radius:12px;
-  padding:10px 12px; font-size:11px; color:var(--muted); line-height:1.45}
-.hero .nums b{display:block; font-size:19px; font-weight:700; color:var(--text); margin-bottom:1px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.reptop{display:inline-block; font-size:12px; font-weight:600; color:var(--accent);
-  background:var(--accent-bg); border-radius:20px; padding:4px 12px; margin:0 0 12px; border:0}
+/* 参数区 */
+.item .fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 9px;
+  padding:12px 13px 13px;margin-top:0;border-top:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 55%,var(--card))}
+.item .fields>div{min-width:0}
+.item .fields label{font-size:10.5px;letter-spacing:.02em;color:var(--muted);margin-bottom:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .fields input,.item .fields select{min-height:34px;font-size:13.5px;padding:5px 8px;
+  border-radius:8px;background:var(--card)}
+.item .fields .i-hint{font-size:10px}
 
-/* 排名条 */
-.rank{padding:9px 11px; border-radius:12px; margin-bottom:7px; border:1px solid transparent}
-.rank.top{background:linear-gradient(135deg,var(--accent-bg),var(--card) 80%);
-  border-color:var(--accent)}
-.rank.top .line b{color:var(--accent); font-size:15px}
-.bar{height:8px}
-.bar i{background:linear-gradient(90deg,var(--brand-3),var(--accent))}
-.rank.top .bar i{background:linear-gradient(90deg,var(--accent),var(--brand-3))}
+/* ---------- 出报告操作区 ---------- */
+.runcard{background:linear-gradient(180deg,var(--card),color-mix(in srgb,var(--accent-bg) 45%,var(--card)))}
+.runbar{position:sticky;bottom:12px;z-index:20;margin-top:16px;padding:9px;border-radius:14px;
+  display:flex;align-items:center;gap:11px;
+  background:color-mix(in srgb,var(--card) 88%,transparent);
+  border:1px solid var(--line);box-shadow:0 12px 30px -16px rgba(20,40,30,.4);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.runbar .primary{flex:1;width:auto;min-height:50px;font-size:15.5px}
+.runhint{flex:0 0 auto;display:flex;flex-direction:column;line-height:1.35;padding-right:8px}
+.runhint b{font-size:12.5px;font-weight:600}
+.runhint span{font-size:10.5px;color:var(--muted)}
 
-/* 空态 */
-.tip.empty{background:var(--bg); border-radius:12px; padding:18px 14px; color:var(--muted)}
-.empty-state{text-align:center; padding:28px 18px 24px; color:var(--muted)}
-.empty-state svg{color:var(--accent); opacity:.65; margin-bottom:12px; display:inline-block}
-.es-title{font-size:15.5px; font-weight:700; color:var(--text); margin-bottom:7px; letter-spacing:.2px}
-.es-text{font-size:12.5px; line-height:1.7; margin:0 auto 16px; max-width:31em}
-.es-acts{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+/* ---------- 报告 = 结算单 ---------- */
+#reportCard h2{margin-bottom:12px}
+.reptop{font-size:12px;color:var(--muted);margin-bottom:10px;letter-spacing:.01em}
+.hero{position:relative;overflow:hidden;border:0;border-radius:16px;padding:22px 22px 20px;
+  margin-bottom:16px;color:#fff;
+  background:linear-gradient(140deg,#186a4d 0%,#0e4d36 60%,#0b402d 100%);
+  box-shadow:0 16px 36px -24px rgba(11,64,45,.9)}
+.hero::after{content:"";position:absolute;right:-56px;top:-56px;width:190px;height:190px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.14);pointer-events:none;
+  box-shadow:0 0 0 42px rgba(255,255,255,.05)}
+.hero .k{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:#9fe4bf;margin-bottom:8px;font-weight:600}
+.hero .name{font-size:23px;font-weight:700;line-height:1.32;color:#fff;margin-bottom:16px;
+  letter-spacing:-.3px;position:relative;z-index:1}
+.hero .nums{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;
+  color:rgba(255,255,255,.62);position:relative;z-index:1}
+.hero .nums>div{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.13);
+  border-radius:11px;padding:9px 14px;min-width:88px;line-height:1.25}
+.hero .nums b{font-size:19px;display:block;font-weight:700;color:#fff;
+  margin-bottom:2px;font-variant-numeric:tabular-nums}
+.hero .small{color:rgba(255,255,255,.72);position:relative;z-index:1}
 
-@media(max-width:600px){
-  header{margin:10px 12px 0; padding:20px 18px 18px; border-radius:18px}
-  header h1{font-size:21px}
-  .hdr-tags{margin-top:12px}
-  .hdr-tags span:nth-child(4){display:none}
-  .wrap{padding:8px 12px}
-  .card{padding:15px; border-radius:16px}
-  .hero .name{font-size:21px}
+.sec{font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin:20px 0 11px;display:flex;align-items:center;gap:9px}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.rank{margin-bottom:11px}
+.rank .line{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-size:13.5px;margin-bottom:5px}
+.rank .line span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank .line b{font-variant-numeric:tabular-nums;font-size:14.5px;color:var(--accent)}
+.rank .badge{font-size:11px;font-weight:500;color:var(--muted);background:var(--chip);
+  border-radius:20px;padding:1px 8px;margin-left:6px;white-space:nowrap}
+.rank .bar{height:7px;border-radius:20px;background:var(--chip);overflow:hidden}
+.rank .bar i{display:block;height:100%;border-radius:20px;
+  background:linear-gradient(90deg,#2a9b71,#8fe0b8);
+  transition:width .5s cubic-bezier(.2,.8,.3,1)}
+.rank:nth-child(2) .bar i{background:linear-gradient(90deg,#176b4d,#4fc08d)}
+/* 冠军那一条用暖金，其余绿色 */
+.sec + .rank .bar i{background:linear-gradient(90deg,#c99f2e,#f0d886)}
+.sec + .rank .line b{color:#a8811f}
+@media(prefers-color-scheme:dark){
+  .sec + .rank .bar i{background:linear-gradient(90deg,#b8912f,#e8d79a)}
+  .sec + .rank .line b{color:#e8d79a}
 }
+
+/* ---------- 报告标题下方的场景标签 ---------- */
+.reptop{display:inline-block;font-size:12px;color:var(--muted);
+  background:var(--bg);border:1px solid var(--line);border-radius:20px;
+  padding:3px 11px;margin:0 0 13px;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ---------- 备用 / 可选入口：虚线降权 ---------- */
+.card.optional{background:var(--bg);border-style:dashed;box-shadow:none}
+.card.optional h2{color:var(--muted);font-size:14px;margin-bottom:11px}
+.card.optional h2 .n{background:transparent;border:1px dashed var(--line);color:var(--muted);
+  box-shadow:none}
+.card.optional .tip{font-size:12px}
+
+/* ---------- banner 标签对比度 ---------- */
+.hero-kicker{color:#c3f0d8;background:rgba(255,255,255,.13);border-color:rgba(255,255,255,.22)}
+.hero-sub b{color:#fff;font-weight:600}
+.hero-copy h1 em{color:#a6f0c6}
+.hero-copy h1 em::after{background:rgba(166,240,198,.18);z-index:0}
+
+
+.tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;
+  border:1px solid var(--line);margin-bottom:14px}
+table.score{border-collapse:collapse;width:100%;font-size:12.5px;min-width:100%}
+table.score th,table.score td{padding:9px 11px;text-align:right;white-space:nowrap;
+  border-bottom:1px solid var(--line)}
+table.score th:first-child,table.score td:first-child{text-align:left;
+  position:sticky;left:0;background:var(--card);z-index:1;
+  box-shadow:1px 0 0 var(--line);max-width:180px;overflow:hidden;text-overflow:ellipsis}
+table.score tr:last-child td{border-bottom:0}
+table.score th{background:var(--bg);font-size:11px;font-weight:600;color:var(--muted);
+  letter-spacing:.02em}
+table.score th:first-child{background:var(--bg)}
+table.score td{font-variant-numeric:tabular-nums}
+table.score td.na{color:var(--muted);opacity:.7;font-size:11.5px}
+table.score td b{color:var(--accent)}
+
+.plain{font-size:13px;line-height:1.75;padding-left:18px;margin:0 0 14px;color:var(--text)}
+.plain li{margin-bottom:9px}
+.plain li b{color:var(--text)}
+.card .small{font-size:12px;color:var(--muted)}
+
+/* 报告工具栏 */
+#reportBar{align-items:center;padding-top:14px;margin-top:6px;border-top:1px solid var(--line)}
+#reportBar #btnAiWhy{background:var(--accent-bg);border-color:color-mix(in srgb,var(--accent) 35%,transparent);
+  color:var(--accent);font-weight:650}
+
+/* 报告空态 */
+.empty-state{border:1px dashed var(--line);border-radius:14px;padding:26px 20px;
+  text-align:center;background:var(--bg)}
+.es-ic{width:46px;height:46px;margin:0 auto 12px;border-radius:13px;background:var(--accent-bg);
+  color:var(--accent);display:flex;align-items:center;justify-content:center}
+.es-ic svg{width:23px;height:23px}
+.es-t{font-size:14.5px;font-weight:650;margin:0 0 4px}
+.es-list{list-style:none;margin:14px 0 0;padding:0;text-align:left;display:inline-block;
+  font-size:12.5px;color:var(--muted);line-height:1.95}
+.es-list li{position:relative;padding-left:17px}
+.es-list li::before{content:"";position:absolute;left:3px;top:.75em;width:5px;height:5px;
+  border-radius:50%;background:var(--accent);opacity:.5}
+
+/* ---------- 回访卡 ---------- */
+#reviewCard .two{gap:12px}
+#rvOut{margin-top:6px}
+
+/* ---------- 撤销条 / 遮罩 ---------- */
+.undo{border-radius:12px;box-shadow:0 14px 34px -18px rgba(20,40,30,.5)}
+
+/* ---------- 营养卡：收窄，别拉成一整条 ---------- */
+#nutWrap .card{max-width:880px;margin-left:auto;margin-right:auto}
+#nutCard h2{margin-bottom:12px}
+
+/* ---------- 页脚 ---------- */
+footer{max-width:1280px;margin:8px auto 0;padding:22px 20px 8px;font-size:12px;
+  line-height:1.7;color:var(--muted);border-top:1px solid var(--line)}
+footer .mini{margin-top:4px}
+
+/* ---------- 焦点 ---------- */
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:1000px){
+  .hero-inner{grid-template-columns:1fr;gap:22px;padding:26px 24px}
+  .hero-copy h1{font-size:27px}
+  .hero-side{display:none}
+  .tn-tabs{display:none}
+  .wrap{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  header{position:static}
+  .tn-inner{height:auto;padding:11px 14px;flex-wrap:wrap;gap:9px}
+  .tn-acct{max-width:100%;width:100%;margin-left:0;flex-direction:column;
+    align-items:flex-start;gap:5px}
+  header .authbar{width:100%}
+  header .authbar .who{max-width:none;font-size:11.5px;flex:1 1 auto}
+  .savebar{font-size:11px;opacity:.85}
+  .hero-sec{margin-top:12px;padding:0 14px}
+  .hero-inner{padding:22px 18px;border-radius:18px}
+  .hero-copy h1{font-size:23px;letter-spacing:-.4px}
+  .hero-sub{font-size:13px;margin-bottom:18px}
+  .hero-acts{gap:9px}
+  .hero-acts .primary,.hero-acts .jump.ghost{width:100%;justify-content:center}
+  .hero-meta{margin-top:16px;font-size:11.5px}
+  .guide{margin:12px 14px 0;padding:14px}
+  .wrap{padding:14px 14px 0}
+  .card{padding:16px;border-radius:14px}
+  #items{grid-template-columns:1fr}
+  .item .top::before{height:88px}
+  .item .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .runbar{bottom:10px;padding:8px}
+  .runhint{display:none}
+  .hero .nums>div{flex:1 1 auto;min-width:76px;padding:8px 11px}
+  .hero .nums b{font-size:17px}
+  .hero .name{font-size:20px}
+  .sec{margin:16px 0 9px}
+}
+/* 窄屏原先把整条导航藏掉，手机上就只能一路往下滚。改成一条可横向滑动的步骤条 */
+@media(max-width:1000px){
+  .tn-inner{flex-wrap:wrap;height:auto;padding-bottom:8px}
+  header .tn-tabs{display:flex;order:3;flex:1 1 100%;width:100%;justify-content:flex-start;
+    overflow-x:auto;gap:6px;padding:2px 0 0;margin:0;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  header .tn-tabs::-webkit-scrollbar{display:none}
+  header .tn-tabs a{flex:0 0 auto;background:var(--chip);border:1px solid var(--line);
+    border-radius:20px;padding:5px 11px;font-size:12.5px;white-space:nowrap}
+}
+@media print{
+  header,.hero-sec,.guide,.runcard,#reviewCard,#nutWrap,footer,.runbar,.tn-tabs{display:none!important}
+  body{background:#fff}
+  .wrap{display:block;max-width:none;padding:0}
+  .card{box-shadow:none;border:0;padding:0}
+  .hero{background:#f4f4f4!important;color:#000!important;border:1px solid #999!important}
+  .hero .k,.hero .nums,.hero .nums b,.hero .name,.hero .small{color:#000!important}
+  .hero .nums>div{background:#fff!important;border-color:#999!important}
+  .rank .bar{background:#e5e5e5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .rank .bar i{background:#555!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
 </style>
 </head>
 <body>
 <header>
-  <h1>按我的需求挑东西</h1>
-  <p class="sub">手机、电脑都能用 · 不用装软件 · 数据只存在这台设备；AI 识图和解读需登录并联网</p>
-  <div class="hdr-tags">
-    <span>截图自动填表</span><span>规则算分不猜</span><span>说清为什么输</span><span>买完能复盘</span>
+  <div class="tn-inner">
+    <a class="logo" href="#top" aria-label="拾物 specpick 回到顶部">
+      <span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="logo-txt"><b>拾物</b><i>specpick</i></span>
+    </a>
+    <nav class="tn-tabs" aria-label="跳到表单各步">
+      <a href="#step1">① 买什么</a>
+      <a href="#step2">② 在意什么</a>
+      <a href="#step3">③ 硬要求</a>
+      <a href="#step4">④ 候选商品</a>
+      <a href="#reportCard">⑤ 裁决报告</a>
+      <a href="#reviewCard">⑥ 买后回访</a>
+    </nav>
+    <div class="tn-acct">
+      <div class="authbar hidden" id="authBar">
+        <span class="who" id="authWho">未登录：AI 识图 / 解读要先登录</span>
+        <button class="mini" id="btnLogin">登录</button>
+        <button class="mini hidden" id="btnLogout">退出</button>
+      </div>
+      <p class="sub savebar" id="saveState" role="status" aria-live="polite"><b></b><span>改动自动存在这台设备</span></p>
+    </div>
   </div>
-  <div class="authbar hidden" id="authBar">
-    <span class="who" id="authWho">未登录：AI 识图 / 解读要先登录</span>
-    <button class="mini" id="btnLogin">登录（手机号验证码）</button>
-    <button class="mini hidden" id="btnLogout">退出登录</button>
-  </div>
-  <p class="sub" id="buildTag" style="font-size:12px;opacity:.7;margin-top:4px">v2026.11.24 18:56 · 新界面，登录框能关掉了</p>
-  <p class="sub savebar" id="saveState" style="margin-top:3px" role="status" aria-live="polite"><b></b><span>改动会自动存在这台设备</span></p>
 </header>
 
 <div id="mirrorBar" class="mirror" style="display:none">
@@ -401,11 +728,38 @@ button.primary:hover{filter:brightness(1.07)}
   如果你只是想手动填表做对比，这个页面也能正常用。
 </div>
 
+<section class="hero-sec" id="top">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="hero-kicker">同一套算法 · 网页版与命令行版可交叉校验</span>
+      <h1>别在两百个 SKU 里翻。<br>说清你在意什么，<em>算给你看</em>。</h1>
+      <p class="hero-sub">把正在看的几件填进来，写清预算和你在意的条件 —— 直接给你三件事：<b>谁该买</b>、<b>别人为什么输</b>、<b>第二名差多少能翻盘</b>。所有分数由规则算出，模型不参与打分。</p>
+      <div class="hero-acts">
+        <button class="primary" id="btnDemo">开始一步步指引</button>
+        <label class="jump ghost" for="visionFile" id="btnJumpVision">有截图？传图自动填表</label>
+      </div>
+      <div class="hero-meta">
+        <span>手机 / 电脑都能用</span><i></i><span>不用装软件</span><i></i><span>数据只存这台设备</span><i></i><span>AI 识图需登录</span>
+      </div>
+    </div>
+    <aside class="hero-side">
+      <div class="hs-h">它到底会告诉你什么</div>
+      <ul>
+        <li><div><b>谁该赢</b><span>按你给的权重算总分，不打感情分</span></div></li>
+        <li><div><b>别人输在哪</b><span>逐条列出被硬要求淘汰的理由</span></div></li>
+        <li><div><b>差多少能翻盘</b><span>只改一个条件的最小路径</span></div></li>
+        <li><div><b>结论稳不稳</b><span>权重上下浮动 25% 重算，看是否翻转</span></div></li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
 <div id="guide" class="guide">
   <div class="guide-head">
     <div>
-      <div class="guide-title">第一次用？我一步步指给你看</div>
-      <div class="guide-sub">点下面的按钮，页面会跳到该点的地方，用<b>绿框</b>圈出来、标上序号，底部跟着一句话告诉你该干什么。大约 1 分钟走完 6 步。</div>
+      <span class="guide-kicker">第一次用</span>
+      <div class="guide-title">跟着走一遍，1 分钟就能出第一份报告</div>
+      <div class="guide-sub">点上面的「开始一步步指引」，页面会跳到该点的地方，用<b>绿框</b>圈出来、标上序号，底部一行一行告诉你该干什么。</div>
     </div>
     <button class="mini" id="btnGuideHide">收起</button>
   </div>
@@ -413,10 +767,6 @@ button.primary:hover{filter:brightness(1.07)}
     <div class="step"><b>1</b><span>打开就有<strong>填好的例子</strong>，不用从零开始</span></div>
     <div class="step"><b>2</b><span>在「<strong>4 正在看的几个候选</strong>」里改成你的商品和数字</span></div>
     <div class="step"><b>3</b><span>点绿色的<strong>「生成裁决报告」</strong>，右边出结果</span></div>
-  </div>
-  <div class="toolbar">
-    <label class="jump" for="visionFile" id="btnJumpVision">有截图？点这里传图，自动填表</label>
-    <button class="mini" id="btnDemo">开始一步步指引（会框出该点的地方）</button>
   </div>
   <details>
     <summary>常见问题（在哪填物品 / 能加图片吗 / 换设备怎么办）</summary>
@@ -436,7 +786,7 @@ button.primary:hover{filter:brightness(1.07)}
 <div class="wrap">
   <div class="col">
     <div class="card">
-      <h2><span class="n">0</span> 先选一个例子，或从空白开始</h2>
+      <h2><span class="n">0</span> 想快点？先套一个现成例子</h2>
       <select id="caseSel" class="pick" aria-label="选择示例"></select>
       <div class="tip" id="caseDesc"></div>
       <div class="toolbar">
@@ -449,7 +799,69 @@ button.primary:hover{filter:brightness(1.07)}
       </div>
     </div>
 
-    <div class="card" id="visionCard" style="display:none">
+    <div id="formCard" class="form-stack">
+    <div class="card" id="step1">
+      <h2><span class="n">1</span> 你要买什么</h2>
+      <div class="mb"><label class="f" for="fTitle">买的东西（一句话就行）</label>
+        <input id="fTitle" placeholder="通勤跑步鞋 / 27 寸显示器 / 5000 上下的显卡">
+        <p class="tip" style="margin:6px 0 0">这行同时是报告标题；具体在比哪几件，填到下面 <b style="white-space:nowrap">4 正在看的几个候选</b>。</p>
+      </div>
+      <div class="mb"><label class="f" for="fScene">场景说明（可留空）</label><textarea id="fScene"></textarea></div>
+      <div class="two">
+        <div><label class="f" for="fBudget">预算 ¥</label><input id="fBudget" type="number" inputmode="decimal" min="0"></div>
+        <div><label class="f" for="fPriceWeight">价格有多重要（0 = 不看价格）</label>
+          <select id="fPriceWeight"></select></div>
+      </div>
+
+    </div>
+    <div class="card" id="step2">
+      <h2 style="margin-top:20px"><span class="n">2</span> 你在意哪些方面</h2>
+      <p class="tip">每一行是一个比较项，三种用法：<b>数字</b>（越大/越小越好，能打分）、
+        <b>档位</b>（先给文字排个顺序，文字也能打分）、<b>文字</b>（只用来筛选，不打分）。
+        权重 0 也等于「只筛选」。数字项不用自己换算 —— 把截图上的原文贴进去就行，
+        比如 <code>8GB GDDR7</code>、<code>跑分 28000</code>、<code>1.2万</code>，它自己抽数字；
+        一个数都读不到就算「没数据」，不会倒扣分。</p>
+      <div id="fields"></div>
+      <button class="mini" id="btnAddField">+ 添加一个比较项</button>
+
+    </div>
+    <div class="card" id="step3">
+      <h2 style="margin-top:20px"><span class="n">3</span> 必须满足的条件</h2>
+      <p class="tip">不满足的候选会被直接淘汰，报告里会逐条写出原因。预算已经自动算一条，这里放别的硬要求。</p>
+      <div id="hards"></div>
+      <button class="mini" id="btnAddHard">+ 添加一条硬要求</button>
+
+    </div>
+    <div class="card" id="step4">
+      <h2 style="margin-top:20px"><span class="n">4</span> 正在看的几个候选</h2>
+      <p class="tip"><strong>这里就是填你要对比的物品</strong>：一个白框 = 一件商品，改名字、价格和各比较项的数字；不够就点下面的「+ 添加一个候选」。只填真正会买的 3–8 个，价格写数字、不用写 ¥。</p>
+      <div id="items"></div>
+      <button class="mini" id="btnAddItem">+ 添加一个候选</button>
+
+    </div>
+    <div class="card runcard">
+      <div class="runbar">
+        <button class="primary" id="btnRun">生成裁决报告</button>
+        <div class="runhint"><b>按当前表单算一次</b><span>谁赢 · 为什么输 · 差多少翻盘</span></div>
+      </div>
+      <div class="toolbar">
+        <button class="mini" id="btnToml">查看 / 复制 TOML</button>
+        <button class="mini" id="btnMd">复制 Markdown 报告</button>
+      </div>
+      <p class="small" style="margin-top:12px">手里还没有候选、只知道想补点什么？
+        <button class="mini" id="btnGoNut" style="margin-left:6px">按营养倒推该买什么 ↓</button></p>
+      <div id="tomlBox" class="hidden" style="margin-top:10px">
+        <div class="small">下面两段可分别保存为 needs.toml 与 items.toml，用命令行跑会得到同样的结果。</div>
+        <label class="f" style="margin-top:8px" for="tomlNeeds">needs.toml</label><textarea id="tomlNeeds" rows="8" readonly></textarea>
+        <label class="f" style="margin-top:8px" for="tomlItems">items.toml</label><textarea id="tomlItems" rows="8" readonly></textarea>
+        <div class="toolbar">
+          <button class="mini" id="btnCopyNeeds">复制 needs.toml</button>
+          <button class="mini" id="btnCopyItems">复制 items.toml</button>
+        </div>
+      </div>
+        </div>
+    </div>
+    <div class="card optional" id="visionCard" style="display:none">
       <h2><span class="n">📷</span> 有截图？直接粘进来，我来读</h2>
       <div class="tip">
         <b>电脑</b>：截图后按 <b>Ctrl+V</b>（Mac ⌘V）粘在本页面任意位置，或把图片拖进来。<br>
@@ -468,7 +880,7 @@ button.primary:hover{filter:brightness(1.07)}
       <div class="tip" id="visionNote" style="margin:10px 0 0"></div>
     </div>
 
-    <div class="card" id="pasteCard">
+    <div class="card optional" id="pasteCard">
       <h2><span class="n">＋</span> 只有文字？粘文字也能填（备用）</h2>
       <div class="tip">
         手机相册打开截图 → 长按「提取文字」→ 全选复制 → 粘到下面，<b>一粘就自动填</b>。<br>
@@ -482,55 +894,6 @@ button.primary:hover{filter:brightness(1.07)}
       <div class="tip" id="pasteNote" style="margin:10px 0 0"></div>
     </div>
 
-    <div class="card" id="formCard">
-      <h2><span class="n">1</span> 你要买什么</h2>
-      <div class="mb"><label class="f" for="fTitle">买的东西（一句话就行）</label>
-        <input id="fTitle" placeholder="通勤跑步鞋 / 27 寸显示器 / 5000 上下的显卡">
-        <p class="tip" style="margin:6px 0 0">这行同时是报告标题；具体在比哪几件，填到下面 <b style="white-space:nowrap">4 正在看的几个候选</b>。</p>
-      </div>
-      <div class="mb"><label class="f" for="fScene">场景说明（可留空）</label><textarea id="fScene"></textarea></div>
-      <div class="two">
-        <div><label class="f" for="fBudget">预算 ¥</label><input id="fBudget" type="number" inputmode="decimal" min="0"></div>
-        <div><label class="f" for="fPriceWeight">价格有多重要（0 = 不看价格）</label>
-          <select id="fPriceWeight"></select></div>
-      </div>
-
-      <h2 style="margin-top:20px"><span class="n">2</span> 你在意哪些方面</h2>
-      <p class="tip">每一行是一个比较项，三种用法：<b>数字</b>（越大/越小越好，能打分）、
-        <b>档位</b>（先给文字排个顺序，文字也能打分）、<b>文字</b>（只用来筛选，不打分）。
-        权重 0 也等于「只筛选」。数字项不用自己换算 —— 把截图上的原文贴进去就行，
-        比如 <code>8GB GDDR7</code>、<code>跑分 28000</code>、<code>1.2万</code>，它自己抽数字；
-        一个数都读不到就算「没数据」，不会倒扣分。</p>
-      <div id="fields"></div>
-      <button class="mini" id="btnAddField">+ 添加一个比较项</button>
-
-      <h2 style="margin-top:20px"><span class="n">3</span> 必须满足的条件</h2>
-      <p class="tip">不满足的候选会被直接淘汰，报告里会逐条写出原因。预算已经自动算一条，这里放别的硬要求。</p>
-      <div id="hards"></div>
-      <button class="mini" id="btnAddHard">+ 添加一条硬要求</button>
-
-      <h2 style="margin-top:20px"><span class="n">4</span> 正在看的几个候选</h2>
-      <p class="tip"><strong>这里就是填你要对比的物品</strong>：一个白框 = 一件商品，改名字、价格和各比较项的数字；不够就点下面的「+ 添加一个候选」。只填真正会买的 3–8 个，价格写数字、不用写 ¥。</p>
-      <div id="items"></div>
-      <button class="mini" id="btnAddItem">+ 添加一个候选</button>
-
-      <div style="margin-top:18px"><button class="primary" id="btnRun">生成裁决报告</button></div>
-      <div class="toolbar">
-        <button class="mini" id="btnToml">查看 / 复制 TOML</button>
-        <button class="mini" id="btnMd">复制 Markdown 报告</button>
-      </div>
-      <p class="small" style="margin-top:12px">手里还没有候选、只知道想补点什么？
-        <button class="mini" id="btnGoNut" style="margin-left:6px">按营养倒推该买什么 ↓</button></p>
-      <div id="tomlBox" class="hidden" style="margin-top:10px">
-        <div class="small">下面两段可分别保存为 needs.toml 与 items.toml，用命令行跑会得到同样的结果。</div>
-        <label class="f" style="margin-top:8px" for="tomlNeeds">needs.toml</label><textarea id="tomlNeeds" rows="8" readonly></textarea>
-        <label class="f" style="margin-top:8px" for="tomlItems">items.toml</label><textarea id="tomlItems" rows="8" readonly></textarea>
-        <div class="toolbar">
-          <button class="mini" id="btnCopyNeeds">复制 needs.toml</button>
-          <button class="mini" id="btnCopyItems">复制 items.toml</button>
-        </div>
-      </div>
-    </div>
   </div>
 
   <div class="col">
@@ -542,16 +905,14 @@ button.primary:hover{filter:brightness(1.07)}
       </div>
       <div id="report">
         <div class="empty-state">
-          <svg viewBox="0 0 120 72" width="112" height="68" aria-hidden="true">
-            <rect x="8" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>
-            <rect x="74" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>
-            <path d="M53 24h14M53 36h14M53 48h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".35"/>
-            <circle cx="27" cy="28" r="4.2" fill="currentColor" opacity=".55"/>
-            <circle cx="93" cy="44" r="4.2" fill="currentColor" opacity=".55"/>
-          </svg>
-          <div class="es-title">这一栏现在还是空的</div>
-          <p class="es-text">填好左边，点「生成裁决报告」，这里会告诉你：谁该赢、另一个输在哪、要让第二名翻盘得改哪个条件。</p>
-          <div class="es-acts"><button class="mini" id="btnEmptyGo">去填第一个候选</button></div>
+          <div class="es-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></div>
+          <p class="es-t">还没有生成报告</p>
+          <p class="small" style="margin:0">填完左边 ①–④，点「生成裁决报告」，这里直接给出结论。</p>
+          <ul class="es-list">
+            <li>谁该赢，总分多少</li>
+            <li>每个落选的差在哪一条</li>
+            <li>第二名要改什么才会翻盘</li>
+          </ul>
         </div>
       </div>
       <div id="aiWhyCard" class="aiwhy hidden">
@@ -565,15 +926,15 @@ button.primary:hover{filter:brightness(1.07)}
           <button class="mini" id="btnAiWhyClear" style="display:none">收起</button>
         </div>
       </div>
-      <div class="toolbar hidden" id="reportBar">
+      <div class="toolbar" id="reportBar">
         <button class="mini" id="btnAiWhy">让 AI 说说</button>
         <button class="mini" id="btnPrint">打印 / 存成 PDF</button>
-        <span class="small" style="align-self:center">只打报告这一块，表单和按钮不会印出来</span>
+        <span class="small" style="align-self:center">只打报告这一块</span>
       </div>
     </div>
 
     <div class="card" id="reviewCard">
-      <h2><span class="n">5</span> 买后回访：过几个月回来记一笔</h2>
+      <h2><span class="n">↺</span> 买后回访：过几个月回来记一笔</h2>
       <div class="tip">
         决策当时写得再清楚，也要用上一阵才知道准不准。买回来之后回来填三件事：<b>会不会再买</b>、<b>每周真用几次</b>、<b>一句教训</b>。<br>
         攒够几条，下面会算出「重来还会买」的比例，并把买回来基本没用的东西点出来 &mdash;&mdash; 下次同类购买，那些权重就该下调。
@@ -658,7 +1019,8 @@ button.primary:hover{filter:brightness(1.07)}
   specpick 网页版 · 与命令行版是同一套算法的两个实现，结果可交叉校验。
   手填的数据只留在本机浏览器、不上传；只有你主动选的那张截图会发给看图模型做识别，不保存。
   不用 API Key、不抓商品；换设备时用「导出备份 / 导入备份」搬走。
-  <div style="margin-top:8px"><button class="mini" id="btnGuideOpen">显示 3 步新手引导</button></div>
+  <div style="margin-top:10px"><button class="mini" id="btnGuideOpen">显示 3 步新手引导</button></div>
+  <p class="sub" id="buildTag">v2026.11.25 22:46 · 新界面（顶部导航 + 主视觉），登录框能关掉了</p>
 </footer>
 
 <div id="coach" class="coach hidden" role="dialog" aria-live="polite" aria-label="分步指引">
@@ -685,11 +1047,11 @@ button.primary:hover{filter:brightness(1.07)}
       <input id="loginCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="验证码" aria-label="验证码">
       <button class="mini" id="btnSendCode" type="button">获取验证码</button>
     </div>
+    <p class="err" id="loginErr" role="status" aria-live="polite" style="margin:2px 0 10px"></p>
     <div class="toolbar">
       <button class="primary" id="btnLoginGo" type="button">登录 / 注册</button>
       <button class="mini" id="btnLoginCancel" type="button">取消</button>
     </div>
-    <p class="err" id="loginErr" role="status" aria-live="polite"></p>
   </div>
 </div>
 
@@ -2389,15 +2751,11 @@ function renderReport(res){
   var rbar = $('#reportBar'); if(rbar) rbar.classList.add('hidden');
   if(!state.items.length){
     el.innerHTML = '<div class="empty-state">'+
-      '<svg viewBox="0 0 120 72" width="104" height="63" aria-hidden="true">'+
-      '<rect x="8" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>'+
-      '<rect x="74" y="12" width="38" height="48" rx="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity=".5"/>'+
-      '<path d="M53 24h14M53 36h14M53 48h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity=".35"/>'+
-      '<circle cx="27" cy="28" r="4.2" fill="currentColor" opacity=".55"/>'+
-      '<circle cx="93" cy="44" r="4.2" fill="currentColor" opacity=".55"/></svg>'+
-      '<div class="es-title">还没有可比的东西</div>'+
-      '<p class="es-text">左边「4 正在看的几个候选」还空着。至少加两件要对比的东西 &mdash;&mdash; 手填，或者把截图粘进来，这里就会出结论。</p>'+
-      '<div class="es-acts"><button class="mini" id="btnEmptyGo">＋ 加第一个候选</button></div></div>';
+      '<div class="es-ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+
+      '<rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="16" rx="2"/><path d="M11 12h2"/></svg></div>'+
+      '<p class="es-t">还没有可比的东西</p>'+
+      '<p class="small" style="margin:0">左边「④ 候选商品」还空着。至少加两件要对比的东西 &mdash;&mdash; 手填，或者把截图粘进来。</p>'+
+      '<div style="margin-top:14px"><button class="mini" id="btnEmptyGo">＋ 加第一个候选</button></div></div>';
     lastResult = null;
     return;
   }
@@ -2420,7 +2778,7 @@ function renderReport(res){
     var max = Math.max.apply(null, r.accepted.map(function(x){return x.total;})) || 1;
     html += '<div class="sec">排名与得分</div>';
     r.accepted.forEach(function(s,i){
-      html += '<div class="rank'+(i===0?' top':'')+'"><div class="line"><span>'+(i+1)+'. '+esc(s.name)+
+      html += '<div class="rank"><div class="line"><span>'+(i+1)+'. '+esc(s.name)+
         ' <span class="badge">¥'+esc(s.price)+'</span></span><b>'+fmt(s.total)+'</b></div>'+
         '<div class="bar"><i style="width:'+Math.max(2,Math.round(s.total/max*100))+'%"></i></div></div>';
     });
@@ -2464,7 +2822,7 @@ function renderReport(res){
       html += '<li><b>'+esc(lab(m.metric))+'</b> 从 '+esc(m.current)+' '+dir+' '+esc(m.target)+
         '（跨越该指标范围的 '+Math.round(m.relative*100)+'%）</li>';
     });
-    html += '</ul><div class="small">按你选的比法直接解出来的，不是猜测。如果某一项是档位或固定规格（比如内存只有 8G / 16G 两挡），算出来的中间值现实中可能买不到。</div>';
+    html += '</ul><div class="small">按你选的比法直接解出来的，不是猜测。对 8G/16G 这类离散规格，中间值现实中可能并不存在。</div>';
   }else if(r.accepted.length>=2){
     html += '<div class="sec">第二名要怎样才会赢</div><div class="small">单改任一条件都追不上，需要同时调整多个条件。</div>';
   }
@@ -2494,7 +2852,8 @@ function renderReport(res){
   html += '<details><summary>看这份报告的文字版（可复制进笔记或 git）</summary><pre id="mdBox"></pre>'+
     '<button class="mini" id="btnCopyMd2" style="margin-top:8px">复制文字版</button></details>';
   el.innerHTML = html;
-  if(rbar && r.accepted.length) rbar.classList.remove('hidden');  $('#mdBox').textContent = markdown(r);
+  if(rbar && r.accepted.length) rbar.classList.remove('hidden');
+  $('#mdBox').textContent = markdown(r);
   var b = $('#btnCopyMd2'); if(b) b.onclick = function(){ copy(markdown(r)); };
   lastResult = r;
 }
@@ -2768,12 +3127,6 @@ function setCase(id){
 
 $('#caseSel').addEventListener('change', function(){ setCase(this.value); });
 $('#btnBlank').onclick = function(){ setCase('blank'); };
-// 报告空态里的「加第一个候选」：用事件委托，因为这块 HTML 每次重算都会重建
-document.addEventListener('click', function(e){
-  if(!e.target || e.target.id !== 'btnEmptyGo') return;
-  var b = $('#btnAddItem'); if(b) b.click();
-  var ic = $('#items'); if(ic && ic.scrollIntoView) ic.scrollIntoView({behavior:'smooth', block:'center'});
-});
 $('#btnExport').onclick = function(){
   sync();
   var blob = new Blob([JSON.stringify({version:1,data:state},null,2)],{type:'application/json'});
@@ -2887,6 +3240,12 @@ $('#btnAddItem').onclick = function(){
   state.items.push(it);
   renderForm(); save(); run(true);
 };
+// 报告空态里的「加第一个候选」：这块 HTML 每次重算都会重建，用事件委托
+document.addEventListener('click', function(e){
+  if(!e.target || e.target.id !== 'btnEmptyGo') return;
+  var b = $('#btnAddItem'); if(b) b.click();
+  var ic = $('#items'); if(ic && ic.scrollIntoView) ic.scrollIntoView({behavior:'smooth', block:'center'});
+});
 /* ---------- 云端识图：截图 → 结构化候选（模型只做录入，不打分） ---------- */
 var CLOUD_CFG = {
   endpoint: 'https://specpick.app.workbuddy.host',
@@ -3343,6 +3702,7 @@ function authErrText(e){
   if(k === 'network' || k === 'backend-unavailable' || /network|fetch|timeout/i.test(all))
     return '网络没连上，稍后再试。';
   if(code.indexOf('auth_') === 0) return '登录校验没过，请重试。';
+  if(k === 'timeout') return msg || '等太久了，网络可能不稳，再试一次。';
   return code ? '没成功，稍后再试。（' + code + '）' : '没成功，稍后再试。';
 }
 /* SDK 的 getSession() 和 verifyOtp() 返回的 data 本身就是会话对象
@@ -3395,6 +3755,15 @@ function closeLogin(){
   var b=$('#btnSendCode'); b.disabled=false; b.textContent='获取验证码';
 }
 function setPhoneErr(msg){ $('#loginErr').textContent = msg || ''; }
+/* SDK 的请求没有超时：后端卡住时按钮会一直停在「登录中…」，
+   看起来就是登录不进去。这里统一加个上限，超时就明确报错。 */
+function withTimeout(p, ms, msg){
+  return new Promise(function(resolve, reject){
+    var t = setTimeout(function(){ reject({ kind:'timeout', message: msg || '请求超时' }); }, ms);
+    Promise.resolve(p).then(function(v){ clearTimeout(t); resolve(v); },
+      function(e){ clearTimeout(t); reject(e); });
+  });
+}
 function needLogin(){
   openLogin();
   setPhoneErr('先用手机号验证码登录，再使用 AI 功能。');
@@ -3414,8 +3783,13 @@ async function sendPhoneCode(){
   }
   b.disabled = true; b.textContent = '发送中…'; setPhoneErr('');
   try{
-    var sent = await getCloud().auth.sendOtp({ phone: phone });
+    var sent = await withTimeout(getCloud().auth.sendOtp({ phone: phone }), 20000,
+      '发验证码等了 20 秒没回应。检查网络后再点一次。');
     if(sent && sent.error){ setPhoneErr(authErrText(sent)); b.disabled=false; b.textContent='获取验证码'; return; }
+    if(!sent || !sent.data || !sent.data.verificationId){
+      setPhoneErr('短信服务没返回验证码编号，再点一次「获取验证码」；还不行就换个网络。');
+      b.disabled=false; b.textContent='获取验证码'; return;
+    }
     pendingOtp = { phone: phone, verificationId: sent.data.verificationId, isExistingUser: sent.data.isExistingUser };
     var left = 60;
     b.textContent = left + ' 秒后重发';
@@ -3442,24 +3816,34 @@ async function submitPhoneLogin(){
   }
   var b = $('#btnLoginGo'); b.disabled = true; b.textContent = '登录中…'; setPhoneErr('');
   try{
-    var done = await getCloud().auth.verifyOtp({
+    var done = await withTimeout(getCloud().auth.verifyOtp({
       phone: pending.phone,
       verificationId: pending.verificationId,
       isExistingUser: pending.isExistingUser,
       token: code
-    });
+    }), 25000, '校验验证码等了 25 秒没回应。网络可能不稳，再点一次「登录 / 注册」。');
     if(done && done.error){ setPhoneErr(authErrText(done)); b.disabled=false; b.textContent='登录 / 注册'; return; }
     authSession = pickSession(done);
-    await refreshSession();
-    if(!authSession) authSession = pickSession(done);
-    pendingOtp = null;
-    renderAuth();
-    if(!signedIn()){
-      setPhoneErr('验证码通过了，但浏览器没保存住登录状态。再点一次「登录 / 注册」；还不行就刷新页面重来。');
+    // 已经拿到会话就立刻关面板、改顶部状态；后面那次核对放在后台，卡住也不影响界面
+    if(authSession){
+      pendingOtp = null;
+      renderAuth();
+      closeLogin();
+      toast('登录成功，AI 功能可以用了');
+      withTimeout(refreshSession(), 10000).then(function(){ renderAuth(); }).catch(function(){});
       return;
     }
-    closeLogin();
-    toast('登录成功，AI 功能可以用了');
+    // 没解析出会话：再向 SDK 问一次，问不到才报错
+    try{ await withTimeout(refreshSession(), 10000); }catch(e){}
+    if(!authSession) authSession = pickSession(done);
+    if(signedIn()){
+      pendingOtp = null;
+      renderAuth();
+      closeLogin();
+      toast('登录成功，AI 功能可以用了');
+      return;
+    }
+    setPhoneErr('验证码已经通过了，但这台浏览器没存住登录状态（可能是禁用了本地存储或开了无痕模式）。刷新页面再登录一次。');
   }catch(e){
     setPhoneErr(authErrText(e));
   }finally{
