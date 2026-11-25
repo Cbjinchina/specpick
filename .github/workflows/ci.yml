@@ -34,5 +34,8 @@ jobs:
       - name: 截图文字解析（手机端自动填表）
         run: node web/paste_test.js
 
+      - name: AI 比较项清洗（模型输出转标准形）
+        run: node web/plan_test.js
+
       - name: 单文件离线版与源码一致
         run: python web/build.py --check
