@@ -56,7 +56,9 @@ function parseRanks(v){
 ${grabFunc('planKeyOf')}
 ${grabFunc('sanitizeHards')}
 ${grabFunc('sanitizePlan')}
+${grabFunc('remapItemKeys')}
 return { sanitizePlan: sanitizePlan, sanitizeHards: sanitizeHards, planKeyOf: planKeyOf,
+  remapItemKeys: remapItemKeys,
   PLAN_RULES: PLAN_RULES, PLAN_RULE_TEXT: PLAN_RULE_TEXT };
 `.replace('%TONUM%', Specpick.toNum.toString());
 
@@ -154,6 +156,21 @@ check('traps 最多 3 条', S({ fields: [{ key: 'a', label: 'A', rule: 'number|h
 check('空对象不炸，字段为空', S({}).fields.length === 0);
 check('null 不炸', S(null).fields.length === 0);
 check('字段不是数组也不炸', S({ fields: 'abc' }).fields.length === 0);
+
+console.log('\n六、识图自动归纳比较项：键要搬得过去');
+
+const auto = S({ fields: [
+  { key: 'Battery-Hours', label: '续航 小时', rule: 'number|higher|span', weight: 4 },
+  { key: '屏幕', label: '屏幕素质', rule: 'rank|higher|span', weight: 3, ranks: ['普通', '高色域'] }
+] });
+check('keyMap 指向清洗后的键', auto.keyMap['Battery-Hours'] === 'battery_hours', String(auto.keyMap['Battery-Hours']));
+check('中文键也记进 keyMap', auto.keyMap['屏幕'] === auto.fields[1].key, String(auto.keyMap['屏幕']));
+
+const item = api.remapItemKeys({ id: 'A', name: '某本', price: 4999, 'Battery-Hours': '12 小时', '屏幕': '高色域' }, auto.keyMap);
+check('候选里的值跟着搬到新键', item.battery_hours === '12 小时' && item[auto.fields[1].key] === '高色域',
+  JSON.stringify(item));
+check('id / name / price 原样不动', item.id === 'A' && item.name === '某本' && item.price === 4999);
+check('没在 keyMap 里的键原样留着', api.remapItemKeys({ name: 'X', price: 1, extra: 2 }, {}).extra === 2);
 
 console.log('\n共 ' + (pass + fail) + ' 项 · 通过 ' + pass + ' · 失败 ' + fail);
 process.exit(fail ? 1 : 0);
