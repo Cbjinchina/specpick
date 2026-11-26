@@ -3848,6 +3848,12 @@ async function refreshSession(){
   return authSession;
 }
 function signedIn(){ return !!(authSession && (authSession.user || authSession.accessToken || authSession.access_token)); }
+/* 手机号只露后四位：+8613800138000 / 13800138000 都显示成 138****8000 */
+function maskPhone(who){
+  var s = String(who || '');
+  var bare = s.replace(/^\+?86[\s-]*/, '').replace(/[\s-]/g, '');
+  return /^\d{11}$/.test(bare) ? bare.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : s;
+}
 function renderAuth(){
   var bar = $('#authBar'); if(!bar) return;
   if(!ON_APP_ORIGIN){ bar.classList.add('hidden'); return; }
@@ -3855,9 +3861,7 @@ function renderAuth(){
   if(signedIn()){
     var u = authSession.user || {};
     var who = String(u.phone || u.email || (u.user_metadata && u.user_metadata.phone) || '已登录');
-    var bare = who.replace(/^\+?86[\s-]*/, '');
-    var shown = /^\d{11}$/.test(bare) ? bare.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : who;
-    $('#authWho').textContent = '已登录：' + shown;
+    $('#authWho').textContent = '已登录：' + maskPhone(who);
     $('#btnLogin').classList.add('hidden');
     $('#btnLogout').classList.remove('hidden');
   }else{

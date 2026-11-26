@@ -37,5 +37,8 @@ jobs:
       - name: AI 比较项清洗（模型输出转标准形）
         run: node web/plan_test.js
 
+      - name: 登录态解析（会话形状 / 手机号打码）
+        run: node web/login_test.js
+
       - name: 单文件离线版与源码一致
         run: python web/build.py --check
