@@ -2614,6 +2614,7 @@ function parseLooseJson(text){
 
 function visionErrText(e){
   var code = (e && e.error && e.error.code) || '';
+  if(e && e.kind === 'timeout') return '读图等太久了（45 秒没回应）。换一张小一点的截图，或稍后再试；也可以先用下面的「粘文字」。';
   if(code.indexOf('auth_') === 0) return '云端校验没过：这个功能只能在正式线上地址使用，本地文件或 GitHub Pages 那份用不了。';
   if(code.indexOf('quota_') === 0) return '识别额度用完了，稍后再试，或先用下面的「粘文字」。';
   if(code.indexOf('gateway_') === 0 || code.indexOf('model_') === 0) return '模型服务暂时不可用，稍后再试。';
@@ -2664,6 +2665,14 @@ async function visionRecognize(dataUrl){
     + '5) 只输出 JSON，不要解释。';
 
   var answer = '';
+  // 读图正常 10–30 秒；45 秒一个字都不吐就自己收手，别让按钮永远停在「正在读图」
+  var vCtl = new AbortController(), vIdle = false;
+  var vTimer = setTimeout(function(){ vIdle = true; try{ vCtl.abort(); }catch(e){} }, 45000);
+  var vBump = function(){
+    clearTimeout(vTimer);
+    vTimer = setTimeout(function(){ vIdle = true; try{ vCtl.abort(); }catch(e){} }, 45000);
+  };
+  try{
   for await (var chunk of cloud.llm.chat.completions.create({
     model: modelId,
     messages: [
@@ -2675,12 +2684,17 @@ async function visionRecognize(dataUrl){
     ],
     stream: true,
     response_format: { type: 'json_object' },
-    temperature: 0.1
+    temperature: 0.1,
+    signal: vCtl.signal
   })) {
     var ch = chunk && chunk.choices && chunk.choices[0];
     var d = ch && ch.delta;
-    if(d && d.content) answer += d.content;
+    if(d && d.content){ answer += d.content; vBump(); }
   }
+  }finally{
+    clearTimeout(vTimer);
+  }
+  if(vIdle && !answer) throw { kind:'timeout', message:'读图超时' };
   return answer;
 }
 
