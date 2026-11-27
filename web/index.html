@@ -1057,8 +1057,12 @@ footer .mini{margin-top:4px}
         <div><label class="f" for="nutCat">在哪类里挑</label>
           <select id="nutCat">
             <option value="fruit" selected>只看水果</option>
+            <option value="veg">只看蔬菜</option>
             <option value="fruitveg">水果 + 蔬菜</option>
-            <option value="all">全都要（含肉蛋豆）</option>
+            <option value="staple">主食和豆类</option>
+            <option value="animal">肉蛋奶和鱼</option>
+            <option value="nut">坚果和籽</option>
+            <option value="all">全都要</option>
           </select></div>
       </div>
       <div class="two">
@@ -1666,6 +1670,11 @@ $('#rvOut').addEventListener('click', function(e){
 
 /* ---------- 营养缺口推荐（与 specpick/nutrition.py 同表同算法） ---------- */
 var NUT_KEY = 'specpick.nutrition.v1';
+/* 下拉里的取值 → 表里的类别；'all' 和任何旧值都当成不限 */
+var NUT_CAT_MAP = {
+  fruit: ['水果'], veg: ['蔬菜'], fruitveg: ['水果', '蔬菜'],
+  staple: ['主食豆类'], animal: ['肉蛋奶'], nut: ['坚果']
+};
 var NUT_SIGNS = [
   ['牙龈出血、伤口好得慢', ['vc']],
   ['蹲下起来发晕、经量大、吃素为主', ['fe']],
@@ -1767,7 +1776,7 @@ function runNut(){
     out.innerHTML = '<div class="small">上面点一个你想补的（比如「维生素C」），这里就会出排序。</div>';
     return;
   }
-  var cats = nut.cat === 'fruit' ? ['水果'] : (nut.cat === 'fruitveg' ? ['水果', '蔬菜'] : null);
+  var cats = NUT_CAT_MAP[nut.cat] || null;
   var r = Specpick.nutritionPlan(nut.targets, {
     portion: nut.portion, lowSugar: nut.lowSugar, limitK: nut.limitK, cats: cats
   });
@@ -1779,11 +1788,17 @@ function runNut(){
 
   var names = r.targets.map(function(t){ return t.label; }).join(' + ');
   var best = r.rows[0];
-  var bestOne = r.targets.map(function(t){ return t.label + ' ' + Math.round(best.pct[t.key]) + '%'; }).join('、');
+  // 这里的百分比是「每 100g 能补到日需的多少」，跟份量无关；先说清口径，
+  // 否则「一次吃 200g，最划算的是冬枣（486%）」会让人以为 200g 只有 486%。
+  var bestOne = r.targets.map(function(t){
+    return t.label + ' 每 100g 就补到 ' + Math.round(best.pct100[t.key]) + '%';
+  }).join('、');
   var L = [];
   var howMuch = best.capped ? ('按 '+best.used+'g 吃（这东西别一次吃太多）') : ('一次吃 '+r.portion+'g');
+  var enough = r.targets.every(function(t){ return best.pct[t.key] >= 100; });
   L.push('<div class="small" style="margin-bottom:8px">要补 <b>'+esc(names)+'</b>，'+howMuch+
-    '的话，最划算的是 <b>'+esc(best.name)+'</b>（'+esc(bestOne)+'）。</div>');
+    '的话，最划算的是 <b>'+esc(best.name)+'</b>（'+esc(bestOne)+
+    (enough ? '，这一份就够了' : '')+'）。</div>');
 
   r.rows.slice(0, 6).forEach(function(row, i){
     L.push('<div class="nrow">'+
@@ -1814,7 +1829,10 @@ function runNut(){
     } else {
       tail = ' &mdash;&mdash; ' + short.join('、') + ' 还没到 100%，剩下的靠当天其它餐次。';
     }
-    L.push('<div class="ncombo"><b>一份搭配</b>：'+parts+'<br>合计补到 '+cover+tail+'</div>');
+    var hasBest = r.combo.items.some(function(it){ return it.name === best.name; });
+    var why = hasBest ? '' :
+      '<br><span class="small">搭配是按「刚好补齐、不浪费」凑的，所以不一定选含量最猛的那个 &mdash;&mdash; 那个吃一半就够了，另一半白吃。</span>';
+    L.push('<div class="ncombo"><b>一份搭配</b>：'+parts+'<br>合计补到 '+cover+tail+why+'</div>');
   }
 
   if(r.gaps.length){
