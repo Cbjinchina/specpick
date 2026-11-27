@@ -48,19 +48,46 @@ const code = `
 var PLAN_RULE_TEXT = ${grabObject('PLAN_RULE_TEXT')};
 var PLAN_RULES = Object.keys(PLAN_RULE_TEXT);
 var OP_TEXT = {'<=':'不超过','>=':'至少','<':'小于','>':'大于','==':'等于','!=':'不等于','in':'属于','not_in':'不属于'};
-var Specpick = { toNum: %TONUM% };
+var Specpick = { toNum: toNumLikeEngine };
+/* engine.js 的 toNum 依赖闭包里的 NUM_RE / SCALE，toString 拿不到，
+   这里放一份等价实现，只用来喂清洗层 */
+function toNumLikeEngine(value, ranks){
+  if (value === null || value === undefined || typeof value === 'boolean') return null;
+  if (typeof value === 'number') return isFinite(value) ? value : null;
+  var text = String(value).trim();
+  if (!text) return null;
+  if (ranks && ranks.length){
+    var flat = text.replace(/\\s+/g,'').toLowerCase(), hit = null;
+    for (var i = 0; i < ranks.length; i++){
+      var k = String(ranks[i]).replace(/\\s+/g,'').toLowerCase();
+      if (k && (k === flat || flat.indexOf(k) !== -1)){ hit = i; break; }
+    }
+    return hit;
+  }
+  var m = text.match(/[-+]?\\d[\\d,]*(?:\\.\\d+)?/);
+  if (!m) return null;
+  var num = parseFloat(m[0].replace(/,/g,''));
+  if (!isFinite(num)) return null;
+  var SCALE = { '万':10000, 'w':10000, 'W':10000, '千':1000, 'k':1000, 'K':1000 };
+  var tail = text.charAt(m.index + m[0].length);
+  if (SCALE[tail] !== undefined) num *= SCALE[tail];
+  return num;
+}
 function parseRanks(v){
   var arr = Array.isArray(v) ? v : String(v == null ? '' : v).split(/[,，>＞→\\/|]+/);
   return arr.map(function(x){ return String(x).trim(); }).filter(function(x){ return x; });
 }
 ${grabFunc('planKeyOf')}
+${grabFunc('hardNum')}
 ${grabFunc('sanitizeHards')}
 ${grabFunc('sanitizePlan')}
+${grabFunc('sanitizeHardSay')}
 ${grabFunc('remapItemKeys')}
 return { sanitizePlan: sanitizePlan, sanitizeHards: sanitizeHards, planKeyOf: planKeyOf,
+  sanitizeHardSay: sanitizeHardSay,
   remapItemKeys: remapItemKeys,
   PLAN_RULES: PLAN_RULES, PLAN_RULE_TEXT: PLAN_RULE_TEXT };
-`.replace('%TONUM%', Specpick.toNum.toString());
+`;
 
 const api = new Function(code)();
 const S = api.sanitizePlan;
@@ -171,6 +198,68 @@ check('候选里的值跟着搬到新键', item.battery_hours === '12 小时' &&
   JSON.stringify(item));
 check('id / name / price 原样不动', item.id === 'A' && item.name === '某本' && item.price === 4999);
 check('没在 keyMap 里的键原样留着', api.remapItemKeys({ name: 'X', price: 1, extra: 2 }, {}).extra === 2);
+
+console.log('\n七、一句话说死要求：翻成规则');
+
+const HS = api.sanitizeHardSay;
+const cur = [
+  { key: 'weight_kg', label: '重量 千克', type: 'number', direction: 'lower', shape: 'span', weight: 3 },
+  { key: 'battery_h', label: '续航 小时', type: 'number', direction: 'higher', shape: 'span', weight: 4 }
+];
+
+const hit = HS({ hards: [{ field: 'weight_kg', op: '<=', value: 2, label: '整机不超过 2kg' }] }, cur);
+check('对上已有比较项就留下', hit.hards.length === 1 && hit.hards[0].field === 'weight_kg',
+  JSON.stringify(hit.hards));
+check('没有新字段时 fields 为空', hit.fields.length === 0);
+
+const grow = HS({
+  hards: [{ field: 'width_cm', op: '<=', value: 30, label: '宽不超过 30cm' }],
+  newFields: [{ key: 'width_cm', label: '宽 厘米', rule: 'number|lower|span', weight: 2 }]
+}, cur);
+check('缺的字段会顺带建出来', grow.fields.length === 1 && grow.fields[0].key === 'width_cm',
+  JSON.stringify(grow.fields));
+check('引用新字段的规则没被丢掉', grow.hards.length === 1 && grow.hards[0].field === 'width_cm',
+  JSON.stringify(grow.hards));
+check('新字段的比法照收', grow.fields[0].direction === 'lower' && grow.fields[0].weight === 2,
+  JSON.stringify(grow.fields[0]));
+
+const cn = HS({
+  hards: [{ field: '宽度', op: '<=', value: 30, label: '宽不超过 30cm' }],
+  newFields: [{ key: '宽度', label: '宽 厘米', rule: 'number|lower|span', weight: 2 }]
+}, cur);
+check('中文 key 被规范化成英文', cn.fields.length === 1 && /^[a-z0-9_]+$/.test(cn.fields[0].key),
+  String(cn.fields[0] && cn.fields[0].key));
+check('规则跟着搬到新 key 上', cn.hards.length === 1 && cn.hards[0].field === cn.fields[0].key,
+  JSON.stringify(cn.hards));
+
+const ghost = HS({ hards: [{ field: 'no_such', op: '<=', value: 1, label: '幽灵条件' }] }, cur);
+check('引用不存在字段的规则直接丢', ghost.hards.length === 0, JSON.stringify(ghost.hards));
+
+const dupKey = HS({
+  hards: [{ field: 'weight_kg', op: '>=', value: 1, label: '至少 1kg' }],
+  newFields: [{ key: 'weight_kg', label: '重量 千克', rule: 'number|lower|span', weight: 2 }]
+}, cur);
+check('和现有字段撞名时改成新 key', dupKey.fields.length === 1 && dupKey.fields[0].key !== 'weight_kg',
+  JSON.stringify(dupKey.fields));
+check('撞名后规则指向改名后的字段', dupKey.hards.length === 1 && dupKey.hards[0].field === dupKey.fields[0].key,
+  JSON.stringify(dupKey.hards));
+
+const manyH = HS({ hards: [1, 2, 3, 4, 5].map(n => ({ field: 'weight_kg', op: '<=', value: n, label: '第' + n + '条' })) }, cur);
+check('规则最多 3 条', manyH.hards.length === 3, String(manyH.hards.length));
+
+const badOp = HS({ hards: [{ field: 'weight_kg', op: 'gt', value: 2, label: '怪运算符' }] }, cur);
+check('不认识的运算符丢掉', badOp.hards.length === 0, JSON.stringify(badOp.hards));
+
+const txtNum = HS({ hards: [{ field: 'weight_kg', op: '<=', value: '2kg', label: '不超过 2kg' }] }, cur);
+check('带单位的数字也能抽出数', txtNum.hards.length === 1 && txtNum.hards[0].value === 2,
+  JSON.stringify(txtNum.hards));
+
+const unsure = HS({ hards: [], unsure: ['「别太吵」没给分贝，卡不了', '', 'a', 'b', 'c'] }, cur);
+check('unsure 最多 3 条且过滤空值', unsure.unsure.length === 3, JSON.stringify(unsure.unsure));
+check('翻不成规则时不硬造', unsure.hards.length === 0 && unsure.fields.length === 0);
+
+check('null 不炸', HS(null, cur).hards.length === 0);
+check('不传现有字段也不炸', HS({ hards: [{ field: 'x', op: '<=', value: 1, label: 'x' }] }).hards.length === 0);
 
 console.log('\n共 ' + (pass + fail) + ' 项 · 通过 ' + pass + ' · 失败 ' + fail);
 process.exit(fail ? 1 : 0);

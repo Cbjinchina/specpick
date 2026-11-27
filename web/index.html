@@ -92,6 +92,10 @@ button.mini.go{background:linear-gradient(180deg,#1c7d5a,#125a41);border-color:#
 button.mini.go:hover{background:linear-gradient(180deg,#1b7a58,#0f4f39);border-color:#0f4f39;color:#fff}
 button.mini.go[disabled]{opacity:.55}
 #aiPlanOut:not(:empty){margin-top:12px}
+#aiHardOut:not(:empty){margin-top:12px}
+.aiplan .ap-act input{flex:1 1 220px;min-width:0}
+#hardSayWrap{margin:14px 0 16px}
+@media(max-width:560px){.aiplan .ap-act input{flex:1 1 100%}}
 .plan{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 13px}
 .plan .pl-cap{font-size:11.5px;color:var(--muted);letter-spacing:.02em;margin-bottom:2px}
 .plan .pl-row{padding:8px 0;border-top:1px dashed var(--line)}
@@ -881,6 +885,18 @@ footer .mini{margin-top:4px}
     <div class="card" id="step3">
       <h2 style="margin-top:20px"><span class="n">3</span> 必须满足的条件</h2>
       <p class="tip">不满足的候选会被直接淘汰，报告里会逐条写出原因。预算已经自动算一条，这里放别的硬要求。</p>
+      <div class="aiplan" id="hardSayWrap">
+        <div class="ap-top">
+          <div class="ap-t">一句话说死要求，AI 翻成规则</div>
+          <div class="ap-s">比如「能塞进 30cm 的抽屉、整机别超 2kg」。它只翻译，不替你定标准 —— 你没给数字的，它会指出来问你，不瞎猜。</div>
+        </div>
+        <div class="ap-act">
+          <input id="hardSay" placeholder="能塞进 30cm 抽屉 / 重量别超 2kg / 一定要能换电池">
+          <button class="mini go" id="btnAiHard" type="button">✦ 拆成规则</button>
+        </div>
+        <div class="ap-note" id="aiHardNote"></div>
+        <div id="aiHardOut"></div>
+      </div>
       <div id="hards"></div>
       <button class="mini" id="btnAddHard">+ 添加一条硬要求</button>
 
@@ -3428,6 +3444,15 @@ function sanitizePlan(raw, keepKeys){
       .map(function(t){ return String(t || '').trim().slice(0, 50); })
       .filter(function(t){ return t; }) };
 }
+/* 硬条件里的数字常常带单位（2kg、30cm）。引擎的 toNum 会把后缀 k 当「千」，
+   所以遇到明确的物理单位先剥掉再抽数，别让 2kg 变成 2000。 */
+function hardNum(v){
+  if(typeof v === 'string'){
+    var m = v.trim().match(/^([-+]?\d[\d,]*(?:\.\d+)?)\s*(kg|mg|cm|mm|km|ml|kw|db|mah|gb|tb|mb|hz|fps|lx)$/i);
+    if(m) return Number(m[1].replace(/,/g, ''));
+  }
+  return Specpick.toNum(v);
+}
 function sanitizeHards(list, fields){
   var byKey = {}; fields.forEach(function(f){ byKey[f.key] = f; });
   var out = [], seen = {};
@@ -3446,7 +3471,7 @@ function sanitizeHards(list, fields){
       val = val.map(function(x){ return String(x).trim(); }).filter(function(x){ return x; });
       if(!val.length) return;
     }else if(type === 'number'){
-      val = Specpick.toNum(val);
+      val = hardNum(val);
       if(val == null) return;
     }else{
       val = String(val == null ? '' : val).trim();
@@ -3462,6 +3487,27 @@ function sanitizeHards(list, fields){
     out.push({ field:fld, op:op, value:val, label:label.slice(0, 60) });
   });
   return out;
+}
+
+/* 「一句话说死要求」的清洗层：新比较项先过 sanitizePlan，硬条件再按「现有项 + 新项」校验。
+   模型引用的 key 可能被 planKeyOf 改过（中文名、撞名），所以 hards 的 field 要跟着 keyMap 走。 */
+function sanitizeHardSay(raw, curFields){
+  var cur = Array.isArray(curFields) ? curFields : [];
+  var plan = sanitizePlan({ fields:(raw && raw.newFields) || [] }, cur);
+  var all = cur.concat(plan.fields);
+  var mapped = (Array.isArray(raw && raw.hards) ? raw.hards : []).map(function(h){
+    if(!h) return null;
+    return { field:(plan.keyMap[String(h.field || '')] || String(h.field || '')),
+             op:h.op, value:h.value, label:h.label };
+  }).filter(function(h){ return h; });
+  return {
+    fields: plan.fields,
+    hards: sanitizeHards(mapped, all),
+    unsure: (Array.isArray(raw && raw.unsure) ? raw.unsure : [])
+      .map(function(t){ return String(t || '').trim().slice(0, 70); })
+      .filter(function(t){ return t; }).slice(0, 3),
+    notes: String((raw && raw.notes) || '').trim().slice(0, 90)
+  };
 }
 
 var PLAN_SYS = '你是购物决策顾问，只负责把「要买什么」拆成一套能用数字算的比较项。铁律：'
@@ -3653,6 +3699,175 @@ function applyPlan(p, merge){
   }
 }
 $('#btnAiPlan').onclick = aiPlan;
+
+/* ---------- 一句话说死要求：AI 只做翻译，标准仍由人给 ---------- */
+var HARD_SYS = '你是购物决策的规则翻译员。用户会用大白话说「必须满足的条件」，你只负责翻成能自动判定的规则。铁律：'
+  + '1) 用户没给出具体数字或取值，就绝对不要自己编一个出来——把这句话放进 unsure，说明缺什么；'
+  + '2) 不推荐商品、不评价好坏、不解释为什么，只翻译；'
+  + '3) 每条规则都要能对一件商品判「过 / 不过」，「颜值高」「质量好」这种翻不成规则的放 unsure；'
+  + '4) 最多 3 条规则、最多 2 个新比较项；'
+  + '5) 只输出 JSON，不要解释、不要 Markdown。';
+var hardSayBusy = false, hardSayLast = null;
+
+function hardSayBrief(){
+  var lines = ['price = 价格（元，数字）'];
+  state.fields.forEach(function(f){
+    lines.push(f.key + ' = ' + f.label + '（' + (PLAN_RULE_TEXT[ruleValue(f)] || '') + '，权重 ' + f.weight + '）');
+  });
+  return lines.join('\n');
+}
+
+/* 一次性的 JSON 调用：不吐字就自己收手，别让按钮一直停在「正在想…」 */
+async function askJsonOnce(sys, ask, ms){
+  var cloud = getCloud();
+  var models = [];
+  try{ models = await withTimeout(cloud.llm.models.list(), 8000, '模型列表超时'); }catch(e){ models = []; }
+  var answer = '', ctl = new AbortController(), idle = false;
+  var arm = function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){ idle = true; try{ ctl.abort(); }catch(e){} }, ms || 30000);
+  };
+  var timer = setTimeout(function(){ idle = true; try{ ctl.abort(); }catch(e){} }, ms || 30000);
+  try{
+    for await (var chunk of cloud.llm.chat.completions.create({
+      model: pickTextModel(models) || 'auto',
+      messages: [{ role:'system', content:sys }, { role:'user', content:ask }],
+      stream: true,
+      response_format: { type:'json_object' },
+      temperature: 0.2,
+      signal: ctl.signal
+    })){
+      var ch = chunk && chunk.choices && chunk.choices[0], d = ch && ch.delta;
+      if(d && d.content){ answer += d.content; arm(); }
+    }
+  }finally{
+    clearTimeout(timer);
+  }
+  if(idle && !answer) throw { kind:'timeout', message:'模型没有回应' };
+  var raw = parseLooseJson(answer);
+  if(!raw) throw new Error('模型没按格式回');
+  return raw;
+}
+
+async function aiHard(){
+  if(hardSayBusy) return;
+  if(!ON_APP_ORIGIN){ toast('「一句话拆规则」要在正式线上地址用；本地文件或 GitHub Pages 那份只能手填。'); return; }
+  var say = String($('#hardSay').value || '').trim();
+  if(!say){ toast('先用一句话写下你的死要求，比如「重量别超过 2kg」'); var i0 = $('#hardSay'); if(i0 && i0.focus) i0.focus(); return; }
+  sync();
+  if(!cloudReady()){ toast('AI 服务还在连接，等两秒再点，或刷新页面'); return; }
+  if(!signedIn()){ needLogin(); return; }
+
+  hardSayBusy = true;
+  var btn = $('#btnAiHard'), note = $('#aiHardNote'), out = $('#aiHardOut');
+  btn.disabled = true; btn.textContent = '正在翻…';
+  note.textContent = '正在把这句话变成能判定的规则…';
+  out.innerHTML = '';
+
+  var ask = '要买的东西：' + (String(state.title || '').trim() || '（还没写）') + '\n'
+    + '使用场景：' + (String(state.scene || '').trim() || '（没写）') + '\n'
+    + '预算：' + (Number(state.budget) > 0 ? '¥' + state.budget : '（没填）') + '\n'
+    + '现有比较项（能对上就用它，不要重复建）：\n' + hardSayBrief() + '\n\n'
+    + '用户的原话：「' + say + '」\n\n'
+    + '输出这个结构的 JSON：\n'
+    + '{"hards":[{"field":"width_cm","op":"<=","value":30,"label":"宽不超过 30cm"}],'
+    + '"newFields":[{"key":"width_cm","label":"宽 厘米","rule":"number|lower|span","weight":2}],'
+    + '"unsure":["原话里没法判定的部分，一句话说清缺什么"],'
+    + '"notes":"这批规则的整体说明，一句话，可以空"}\n'
+    + '规则：\n'
+    + 'op 只能是 <= >= < > == != in not_in；value 是数字时不要带单位、不要写引号；\n'
+    + 'field 必须是现有比较项的 key、price、或 newFields 里新建的 key；\n'
+    + 'newFields 只在现有项确实没有对应字段时才建：key 用小写英文加下划线，label 带单位且不超过 10 个字，'
+    + 'rule 只能取 ' + PLAN_RULES.join(' / ') + '；\n'
+    + 'label 是给用户看的原话，会直接印进报告，不超过 20 个字；\n'
+    + '原话里没给出的数值一律不要编，放 unsure 里问他；全部翻不成规则时 hards 给空数组。只输出 JSON。';
+
+  try{
+    var raw = await askJsonOnce(HARD_SYS, ask, 30000);
+    var res = sanitizeHardSay(raw, state.fields);
+    if(!res.hards.length && !res.fields.length && !res.unsure.length){
+      throw new Error('这几句里没找到能卡死的条件');
+    }
+    hardSayLast = res;
+    renderHardSay(res);
+    note.textContent = '';
+  }catch(e){
+    note.textContent = '';
+    var reason = (e && e.kind === 'timeout') ? '等太久，模型没回应' : aiErrText(e);
+    out.innerHTML = '<div class="pl-warn">没翻出来：' + esc(reason) + '。可以直接手填，或者换个说法再试。</div>';
+  }finally{
+    hardSayBusy = false; btn.disabled = false; btn.textContent = '✦ 拆成规则';
+  }
+}
+
+function renderHardSay(r){
+  var out = $('#aiHardOut');
+  var head = '<div class="pl-cap">能加进「必须满足」· ' + r.hards.length + ' 条</div>';
+  var rows = r.hards.map(function(h){
+    return '<div class="pl-row"><div class="pl-line"><span class="pl-name">' + esc(h.label) + '</span></div></div>';
+  }).join('');
+  var nf = r.fields.length
+    ? '<div class="pl-hard"><span class="pl-cap2">顺带加的对比项 · 候选里还要填上这个数才算数</span>'
+      + esc(r.fields.map(function(f){
+          return f.label + '（' + (PLAN_RULE_TEXT[ruleValue(f)] || '') + '，权重 ' + f.weight + '）';
+        }).join('；')) + '</div>'
+    : '';
+  var un = r.unsure.length
+    ? '<div class="pl-warn">这几句还卡不死：' + esc(r.unsure.join('；')) + '</div>'
+    : '';
+  var nt = r.notes ? '<div class="pl-note">' + esc(r.notes) + '</div>' : '';
+  var acts = (r.hards.length || r.fields.length)
+    ? '<div class="pl-acts">'
+      + '<button class="mini go" id="btnHardTake" type="button">就用这些</button>'
+      + '<button class="mini" id="btnHardDrop" type="button">不要</button>'
+      + '</div>'
+    : '';
+  out.innerHTML = '<div class="plan">' + head + rows + nf + un + nt + acts + '</div>';
+  if($('#btnHardTake')) $('#btnHardTake').onclick = function(){ applyHardSay(r); };
+  if($('#btnHardDrop')) $('#btnHardDrop').onclick = function(){ out.innerHTML = ''; };
+}
+
+function applyHardSay(r){
+  if(!r.hards.length && !r.fields.length){ toast('这几句还落不成规则，换个带数字的说法'); return; }
+  snapshot('把一句话拆成硬要求');
+
+  var addedFields = [];
+  r.fields.forEach(function(nf){
+    if(state.fields.some(function(f){ return f.key === nf.key; })) return;
+    var o = JSON.parse(JSON.stringify(nf));
+    state.fields.push(o); addedFields.push(o);
+  });
+
+  var sig = {};
+  state.hard.forEach(function(h){ sig[h.field + '|' + h.op + '|' + JSON.stringify(h.value)] = 1; });
+  var addedHards = 0;
+  r.hards.forEach(function(h){
+    var s = h.field + '|' + h.op + '|' + JSON.stringify(h.value);
+    if(sig[s]) return;
+    sig[s] = 1;
+    state.hard.push({ field:h.field, op:h.op, value:h.value, label:h.label });
+    addedHards++;
+  });
+
+  normalize(state);
+  renderForm(); saveNow(); run(true);
+  $('#aiHardOut').innerHTML = '';
+  $('#hardSay').value = '';
+
+  if(addedHards){
+    var msg = '已加 ' + addedHards + ' 条硬要求';
+    if(addedFields.length) msg += '，顺带加了 ' + addedFields.length + ' 个比较项 —— 记得给候选填上';
+    toast(msg);
+  }else if(addedFields.length){
+    toast('加了 ' + addedFields.length + ' 个比较项；规则你已经有了，没重复加');
+  }else{
+    toast('这几条你已经都有了，没重复加');
+  }
+}
+$('#btnAiHard').onclick = aiHard;
+$('#hardSay').addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ e.preventDefault(); aiHard(); }
+});
 
 /* ---------- 报告追问：只准照着事实答，不许自己重算 ---------- */
 var aiQAList = [], aiAskBusy = false;
